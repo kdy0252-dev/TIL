@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>웹 개발자 첫걸음: 브라우저와 친숙해질 것</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FAF7F0; /* 전체 배경색 */
+            color: #333333; /* 기본 텍스트 색상 */
+        }
+        .sidebar {
+            background-color: #FFFFFF; /* 사이드바 배경색 */
+            border-right: 1px solid #E5E7EB; /* 사이드바 오른쪽 테두리 */
+        }
+        .nav-link {
+            display: block;
+            padding: 0.75rem 1.5rem; /* 상하 0.75rem, 좌우 1.5rem 패딩 */
+            border-radius: 0.375rem; /* 둥근 모서리 */
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out; /* 부드러운 전환 효과 */
+            color: #374151; /* 기본 링크 색상 (Gray-700) */
+        }
+        .nav-link:hover {
+            background-color: #E0E7FF; /* 호버 시 배경색 (Indigo-100) */
+            color: #3730A3; /* 호버 시 텍스트 색상 (Indigo-800) */
+        }
+        .nav-link.active {
+            background-color: #A0C4FF; /* 활성 링크 배경색 (Muted Blue) */
+            color: #FFFFFF; /* 활성 링크 텍스트 색상 */
+            font-weight: 600; /* 활성 링크 굵기 */
+        }
+        .nav-group-title {
+            padding: 1rem 1.5rem 0.5rem; /* 그룹 제목 패딩 */
+            font-size: 0.875rem; /* text-sm, 그룹 제목 폰트 크기 */
+            font-weight: 600; /* 그룹 제목 굵기 */
+            color: #6B7280; /* 그룹 제목 색상 (Gray-500) */
+            text-transform: uppercase; /* 대문자 변환 */
+        }
+        .content-section {
+            padding: 2rem; /* 콘텐츠 섹션 패딩 */
+            background-color: #FFFFFF; /* 콘텐츠 섹션 배경색 */
+            border-radius: 0.5rem; /* 콘텐츠 섹션 둥근 모서리 */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* 그림자 효과 */
+        }
+        .content-title { /* 페이지 최상단 h1에 적용되는 클래스 */
+            color: #2D3748; /* Gray-800 */
+        }
+        .code-block {
+            background-color: #F3F4F6; /* 코드 블록 배경색 (Cool Gray 100) */
+            color: #111827; /* 코드 블록 텍스트 색상 (Gray 900) */
+            padding: 1rem; /* 코드 블록 패딩 */
+            border-radius: 0.375rem; /* 코드 블록 둥근 모서리 */
+            overflow-x: auto; /* 내용 넘칠 시 가로 스크롤 */
+            font-family: 'Courier New', Courier, monospace; /* 고정폭 글꼴 */
+            font-size: 0.875rem; /* text-sm, 코드 블록 폰트 크기 */
+            line-height: 1.4; /* 줄 간격 */
+        }
+        .code-block code {
+            white-space: pre; /* 공백 및 줄바꿈 유지 */
+        }
+        .interactive-area {
+            border: 1px solid #D1D5DB; /* 인터랙티브 영역 테두리 (Gray-300) */
+            padding: 1.5rem; /* 인터랙티브 영역 패딩 */
+            border-radius: 0.375rem; /* 인터랙티브 영역 둥근 모서리 */
+            margin-top: 1.5rem; /* 위쪽 여백 */
+        }
+        .event-loop-component {
+            border: 2px solid #A0C4FF; /* 이벤트 루프 시각화 컴포넌트 테두리 */
+            padding: 0.75rem; /* 패딩 */
+            margin: 0.5rem; /* 바깥 여백 */
+            border-radius: 0.375rem; /* 둥근 모서리 */
+            min-height: 100px; /* 최소 높이 */
+            text-align: center; /* 텍스트 가운데 정렬 */
+        }
+        .task-item {
+            background-color: #E0E7FF; /* 태스크 아이템 배경색 */
+            padding: 0.5rem; /* 패딩 */
+            margin-bottom: 0.5rem; /* 아래 여백 */
+            border-radius: 0.25rem; /* 둥근 모서리 */
+            font-size: 0.875rem; /* text-sm, 폰트 크기 */
+        }
+        .log-output { /* 인터랙티브 시뮬레이션 로그 */
+            background-color: #1F2937; /* 로그 출력 배경색 (Gray-800) */
+            color: #F9FAFB; /* 로그 텍스트 색상 (Gray-50) */
+            min-height: 150px; /* 최소 높이 */
+            max-height: 250px; /* 최대 높이 설정, 내용 넘치면 스크롤 */
+            overflow-y: auto; /* 세로 스크롤 자동 */
+            padding: 0.5rem; /* 패딩 */
+            border-radius: 0.25rem; /* 둥근 모서리 */
+        }
+        .log-output h4 { /* 로그 제목 스타일 */
+            color: #F9FAFB;
+        }
+        .log-output p { /* 로그 내용 스타일 */
+            color: #F9FAFB;
+        }
+        .btn {
+            background-color: #A0C4FF; /* 버튼 배경색 */
+            color: white; /* 버튼 텍스트 색상 */
+            padding: 0.5rem 1rem; /* 버튼 패딩 */
+            border-radius: 0.375rem; /* 버튼 둥근 모서리 */
+            font-weight: 500; /* 버튼 글꼴 굵기 */
+            transition: background-color 0.2s; /* 배경색 전환 효과 */
+        }
+        .btn:hover {
+            background-color: #79A6DC; /* 버튼 호버 시 배경색 */
+        }
+        .btn-disabled {
+            background-color: #D1D5DB; /* 비활성 버튼 배경색 */
+            color: #6B7280; /* 비활성 버튼 텍스트 색상 */
+            cursor: not-allowed; /* 커서 모양 변경 */
+        }
+        .btn-disabled:hover {
+            background-color: #D1D5DB; /* 비활성 버튼 호버 시 배경색 유지 */
+        }
+
+        /* 제목 태그 스타일 */
+        h1, h2, h3, h4, h5, h6 { font-weight: 600; }
+        h1 { color: #2D3748; margin-top: 2.5rem; margin-bottom: 1.25rem; }
+        h2 { color: #2D3748; margin-top: 2rem; margin-bottom: 1rem; }
+        h3 { color: #4A5568; margin-top: 1.75rem; margin-bottom: 0.75rem; }
+        h4 { color: #4A5568; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        h5 { color: #4A5568; margin-top: 1.25rem; margin-bottom: 0.5rem; }
+        h6 { color: #6B7280; margin-top: 1rem; margin-bottom: 0.5rem; }
+
+        /* 기타 텍스트 요소 스타일 */
+        p { margin-bottom: 1rem; line-height: 1.625; color: #4A5568; }
+        ul { list-style-position: inside; margin-bottom: 1rem; }
+        li { margin-bottom: 0.5rem; }
+        strong { font-weight: 600; color: #2D3748; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+        th, td { border: 1px solid #E2E8F0; padding: 0.75rem; text-align: left; }
+        th { background-color: #F7FAFC; }
+        .note { background-color: #FFFBEB; border-left: 4px solid #FBBF24; padding: 1rem; margin: 1rem 0; border-radius: 0.25rem; }
+        .warning-note { background-color: #FEF2F2; border-left: 4px solid #F87171; padding: 1rem; margin: 1rem 0; border-radius: 0.25rem; }
+
+        /* 스크롤바 스타일 */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #A0C4FF; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #79A6DC; }
+
+        /* 이벤트 루프 시각화 다이어그램 스타일 */
+        .visualization-container {
+            display: flex; flex-direction: row; align-items: flex-start; gap: 0.5rem;
+            margin-top: 1.5rem; margin-bottom: 1.5rem; overflow-x: auto; padding: 1rem;
+            background-color: #F9FAFB; border-radius: 0.375rem; border: 1px solid #E5E7EB;
+            width: 100%; box-sizing: border-box;
+        }
+        .viz-step {
+            display: flex; flex-direction: column; align-items: center;
+            min-width: 180px; /* 각 단계의 최소 너비 */
+            max-width: 220px; /* 각 단계의 최대 너비, 필요시 조정 */
+            flex-shrink: 0;
+        }
+        .viz-description {
+            font-size: 0.875rem; color: #4A5568; margin-bottom: 0.5rem;
+            text-align: center;
+            white-space: normal; /* 텍스트 줄바꿈 허용 */
+            word-break: break-word; /* 긴 단어 줄바꿈 처리 */
+            min-height: 2.5em; /* 최소 높이 확보 (약 2줄 분량) */
+        }
+        .viz-box {
+            display: flex; flex-direction: column-reverse; /* 아이템이 아래에서 위로 쌓이도록 */
+            border: 2px solid #A0C4FF;
+            border-radius: 0.375rem; padding: 0.5rem; background-color: #EFF6FF;
+            min-height: 80px; width: 100%; max-width: 160px; margin-bottom: 0.5rem;
+        }
+        .viz-box-title {
+            font-size: 0.75rem; font-weight: 600; color: #374151;
+            text-align: center; margin-bottom: 0.25rem; display: block;
+            width: 100%; /* 부모 너비(event-loop-step-details) 내에서 100% */
+            max-width: 160px; /* viz-box와 동일한 최대 너비 설정 */
+        }
+        .viz-item {
+            background-color: #DBEAFE; border: 1px solid #BFDBFE; padding: 0.25rem 0.5rem;
+            margin-top: 0.25rem; border-radius: 0.25rem; text-align: center;
+            font-size: 0.75rem; color: #1E40AF; word-break: break-all;
+        }
+        .viz-item-empty {
+            color: #9CA3AF; font-style: italic; padding: 0.25rem 0.5rem; font-size: 0.75rem;
+        }
+        .viz-flow-arrow {
+            font-size: 1.5rem; color: #60A5FA; align-self: center;
+            flex-shrink: 0; margin-top: 50px; /* 화살표 수직 위치 조정 */
+        }
+        .event-loop-step-details {
+            width: 100%; /* 부모(viz-step)의 너비를 따름 */
+            display: flex; /* 자식 요소(viz-box-title, viz-box)들을 중앙 정렬하기 위함 */
+            flex-direction: column; /* 자식 요소들을 세로로 정렬 */
+            align-items: center; /* 자식 요소들을 가로축 중앙에 정렬 */
+        }
+        .log-output-viz-item { /* 정적 다이어그램 내 로그 아이템 */
+            font-size: 0.75rem;
+            color: white;
+            text-align: left;
+            padding-left: 0.5rem;
+            line-height: 1.3;
+        }
+        .static-log-box { /* 정적 다이어그램 로그 박스 전용 스타일 */
+            background-color: #1F2937;
+            color: white;
+            padding: 0.5rem;
+            overflow-y: auto; /* 내용 많을 시 스크롤 */
+        }
+    </style>
+</head>
+<body class="antialiased">
+<div class="flex h-screen overflow-hidden">
+    <aside id="sidebar" class="sidebar w-72 flex-shrink-0 overflow-y-auto p-4 space-y-2">
+        <h1 class="text-2xl font-bold text-center py-4 text-indigo-700">브라우저 탐험</h1>
+        <nav id="mainNav"></nav>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-6 md:p-8 lg:p-10">
+        <div class="mx-auto w-full max-w-[calc(100vw*2/3)]"> <div id="contentArea" class="space-y-8">
+        </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    const contentData = {
+        "intro": {
+            title: "시작: 웹 브라우저, 그것은 무엇인가?",
+            navTitle: "🚀 소개",
+            content: `
+            <div class="content-section">
+                <p>우리가 매일 인터넷을 통해 정보를 얻고, 소통하며, 다양한 서비스를 이용할 때 사용하는 필수 소프트웨어는 바로 <strong>웹 브라우저</strong>입니다. Chrome, Safari, Edge, Firefox 등이 대표적입니다.</p>
+                <p>웹 브라우저의 주요 기능은 웹 서버로부터 HTML, CSS, JavaScript 등의 파일을 받아와서 사용자가 볼 수 있는 형태로 화면에 표시하고, 사용자와 웹 페이지 간의 상호작용을 가능하게 하는 것입니다.</p>
+                <h3 class="text-2xl my-2">왜 브라우저 동작 방식을 알아야 하는가?</h3>
+                <ul>
+                    <li><strong>웹 개발/디자인의 이해도 향상:</strong> 코드가 실제로 어떻게 화면에 그려지는지 알면, 더 효율적이고 예측 가능한 개발/디자인이 가능합니다.</li>
+                    <li><strong>문제 해결 능력 증진:</strong> 웹 페이지가 예상대로 동작하지 않거나, 성능 문제가 발생했을 때 원인을 파악하고 해결하는 데 도움이 됩니다. (예: "왜 내 CSS가 적용되지 않는가?", "왜 페이지가 느리게 로딩되는가?", "애니메이션이 버벅거리는 이유는 무엇인가?")</li>
+                    <li><strong>성능 최적화:</strong> 브라우저의 렌더링 과정을 이해하면, 웹 페이지의 로딩 속도나 반응성을 개선하는 최적화 방법을 더 잘 적용할 수 있습니다.</li>
+                </ul>
+                <h3 class="text-2xl my-2">금일 탐험 경로</h3>
+                <p>"금일, 우리가 작성한 HTML, CSS, JavaScript 코드가 어떤 과정을 거쳐 웹 페이지로 탄생하는지, 그 과정을 함께 탐험할 것입니다. 브라우저가 코드를 처리하는 과정을 면밀히 살펴볼 것입니다! 특히, 보이지 않는 곳에서 임무를 수행하는 DOM, CSSOM, 그리고 자바스크립트 엔진의 세계로 깊이 들어가 볼 것입니다."</p>
+                <p>본 애플리케이션을 통해 웹 브라우저의 핵심 동작 원리를 단계별로 학습하고, 상호작용 예제를 통해 추상적인 개념을 보다 명확하게 이해할 수 있기 바랍니다.</p>
+            </div>
+        `
+        },
+        "rendering-overview": {
+            title: "웹 사이트 렌더링 과정 개요",
+            navTitle: "🖼️ 렌더링 과정",
+            group: "렌더링 파이프라인",
+            content: `
+            <div class="content-section">
+                <p>브라우저의 핵심 임무는 우리가 작성한 코드(HTML, CSS, JavaScript)를 사용자가 볼 수 있는 시각적인 웹 페이지로 변환하는 것입니다. 이 과정은 여러 단계를 거쳐 진행됩니다.</p>
+                <h3 class="text-2xl my-2">주요 단계 요약</h3>
+                <ol class="list-decimal list-inside space-y-2">
+                    <li><strong>파싱 (Parsing):</strong> HTML, CSS 코드를 브라우저가 이해할 수 있는 구조로 변환합니다.
+                        <ul class="list-disc list-inside ml-4">
+                            <li>HTML → DOM Tree (문서 객체 모델 트리)</li>
+                            <li>CSS → CSSOM Tree (CSS 객체 모델 트리)</li>
+                        </ul>
+                    </li>
+                    <li><strong>렌더 트리 (Render Tree) 생성:</strong> DOM Tree와 CSSOM Tree를 결합하여 화면에 실제로 그려질 요소들로 구성된 트리를 만듭니다. (예: <code>display: none</code> 스타일이 적용된 요소는 렌더 트리에 포함되지 않습니다.)</li>
+                    <li><strong>레이아웃 (Layout / Reflow):</strong> 렌더 트리를 기반으로 각 요소의 정확한 화면상 위치와 크기를 계산합니다.</li>
+                    <li><strong>페인팅 (Painting / Rasterizing):</strong> 계산된 레이아웃 정보를 바탕으로 실제 픽셀을 화면에 그립니다.</li>
+                </ol>
+                <p class="note">이 과정은 항상 엄격하게 순차적으로만 진행되는 것은 아닙니다. 특히 JavaScript에 의해 DOM이나 스타일이 동적으로 변경될 경우 특정 단계가 반복되거나 다시 실행될 수 있습니다.</p>
+            </div>
+        `
+        },
+        "html-dom": {
+            title: "첫 번째 설계도: HTML 파싱과 DOM 트리",
+            navTitle: "뼈대: HTML & DOM",
+            group: "렌더링 파이프라인",
+            content: `
+            <div class="content-section">
+                <p><strong>HTML (HyperText Markup Language)</strong>은 웹 페이지의 구조와 콘텐츠를 정의하는 마크업 언어입니다. 웹 페이지의 '뼈대'를 만든다고 생각할 수 있습니다.</p>
+                <h3 class="text-2xl my-2">브라우저의 HTML 판독 (파싱, Parsing)</h3>
+                <p>브라우저는 HTML 문서를 위에서부터 아래로 순차적으로 읽어들입니다. 이 과정에서 HTML 코드를 '토큰(token)'이라는 작은 단위로 분해하고, 이 토큰들을 해석하여 의미있는 구조, 즉 DOM 트리를 만들어냅니다. 우리가 글을 읽고 문장 구조와 단어의 의미를 파악하는 것과 유사합니다.</p>
+                <h3 class="text-2xl my-2">DOM (Document Object Model) 트리</h3>
+                <p>DOM은 HTML 문서의 구조화된 표현입니다. 브라우저가 웹 페이지를 이해하고, JavaScript와 같은 프로그래밍 언어를 통해 웹 페이지의 내용이나 구조를 동적으로 조작할 수 있도록 객체(Object) 형태로 모델링한 것입니다.</p>
+                <p>문서의 각 부분(예: 태그, 텍스트 내용)은 '노드(Node)'라고 불리며, 이 노드들은 부모-자식 관계를 가지며 나무와 같은 계층적인 트리(Tree) 구조를 이룹니다.</p>
+                <h4 class="text-xl my-2">HTML 태그가 DOM 노드로 변환되는 예시:</h4>
+                <p>다음과 같은 간단한 HTML 코드가 있다고 가정할 수 있습니다.</p>
+                <div class="code-block"><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;title&gt;My Page&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1 class="text-3xl my-2"&gt;Welcome&lt;/h1&gt;
+  &lt;p id="intro"&gt;Hello, world!&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></div>
+                <p>이 HTML 코드가 파싱되면 브라우저 내부에는 다음과 같은 DOM 트리 구조가 생성됩니다 (시각적 표현 예시):</p>
+                <div class="code-block"><code>Document
+└── html
+    ├── head
+    │   └── title
+    │       └── Text ("My Page")
+    └── body
+        ├── h1
+        │   └── Text ("Welcome")
+        └── p (id="intro")
+            └── Text ("Hello, world!")</code></div>
+                <p class="note">대부분의 웹 브라우저에는 개발자 도구(일반적으로 F12키로 접근)가 내장되어 있습니다. 'Elements' 탭 등에서 실제 웹 페이지의 DOM 트리를 직접 확인하고 분석할 수 있습니다.</p>
+            </div>
+        `
+        },
+        "css-cssom": {
+            title: "웹페이지 장식: CSS 파싱과 CSSOM 트리",
+            navTitle: "스타일: CSS & CSSOM",
+            group: "렌더링 파이프라인",
+            content: `
+            <div class="content-section">
+                <p><strong>CSS (Cascading Style Sheets)</strong>는 HTML로 만들어진 웹 페이지의 구조에 색상, 글꼴, 크기, 레이아웃 등 시각적인 디자인과 스타일을 적용하는 언어입니다. 웹 페이지에 '옷을 입히고 화장하는' 역할을 합니다.</p>
+                <h3 class="text-2xl my-2">브라우저의 CSS 판독 (파싱, Parsing)</h3>
+                <p>브라우저는 HTML 문서를 파싱하는 도중 <code>&lt;link&gt;</code> 태그를 통해 외부 CSS 파일을 참조하거나 <code>&lt;style&gt;</code> 태그 내에 직접 작성된 CSS 코드를 만나면 CSS 파싱을 시작합니다. CSS 코드를 해석하여 스타일 규칙들을 만들고, 이를 바탕으로 CSSOM(CSS Object Model) 트리를 구성합니다.</p>
+                <p class="note">일반적으로 HTML 파싱과 CSS 파싱은 동시에 진행될 수 있습니다. 즉, CSS 파싱이 완료될 때까지 HTML 파싱이 반드시 중단되는 것은 아닙니다. 다만, JavaScript 실행이 DOM 생성을 지연시키고, 이 DOM 생성이 CSSOM 생성을 기다려야 하는 경우 등 복잡한 상호작용이 발생할 수 있습니다.</p>
+                <h3 class="text-2xl my-2">CSSOM (CSS Object Model) 트리</h3>
+                <p>CSSOM은 CSS 스타일 규칙들을 DOM과 유사하게 객체 모델로 표현한 것입니다. DOM 트리의 각 노드에 어떤 스타일이 적용될지에 대한 정보를 담고 있으며, 이 또한 트리 구조를 가집니다. 부모 요소의 스타일은 자식 요소에게 상속될 수 있는데, 이러한 특징 때문에 'Cascading(계단식)'이라는 이름이 붙었습니다.</p>
+                <h4 class="text-xl my-2">CSSOM 트리 생성 예시:</h4>
+                <p>다음과 같은 CSS 코드가 있다고 가정할 수 있습니다.</p>
+                <div class="code-block"><code>body {
+  font-family: sans-serif;
+  margin: 0;
+}
+
+p {
+  color: blue;
+  font-size: 16px;
+}</code></div>
+                <p>이 CSS가 파싱되면 브라우저 내부에는 다음과 같은 (개념적인) CSSOM 트리 구조가 생성될 수 있습니다:</p>
+                <div class="code-block"><code>StyleSheet
+├── CSSRule (for 'body')
+│   ├── Selector: 'body'
+│   ├── Declaration: font-family: sans-serif
+│   └── Declaration: margin: 0
+└── CSSRule (for 'p')
+    ├── Selector: 'p'
+    ├── Declaration: color: blue
+    └── Declaration: font-size: 16px</code></div>
+                <p>CSSOM 트리는 DOM 트리와는 별도로 구성되며, 브라우저가 각 DOM 노드에 최종적으로 어떤 스타일을 적용할지 계산(Computed Style)하는 데 사용됩니다.</p>
+                <p>"DOM 트리가 건물의 뼈대라면, CSSOM 트리는 각 방의 벽지 색깔, 가구 배치 스타일 등을 정의한 인테리어 계획서와 같습니다."</p>
+            </div>
+        `
+        },
+        "render-tree": {
+            title: "화면 표시 준비: 렌더 트리",
+            navTitle: "결합: 렌더 트리",
+            group: "렌더링 파이프라인",
+            content: `
+            <div class="content-section">
+                <p>브라우저는 화면에 실제로 표시될 내용을 결정하기 위해, 앞서 생성된 <strong>DOM(문서 객체 모델) 트리</strong>와 <strong>CSSOM(CSS 객체 모델) 트리</strong>를 결합합니다. 이 과정을 통해 <strong>렌더 트리(Render Tree)</strong>가 생성됩니다.</p>
+                <h3 class="text-2xl my-2">렌더 트리란 무엇인가?</h3>
+                <p>렌더 트리는 화면에 실제로 그려질 요소들만으로 구성된 트리입니다. DOM 트리의 모든 노드가 렌더 트리에 포함되는 것은 아닙니다. 예를 들어, CSS에서 <code>display: none;</code> 스타일이 적용된 요소는 화면에 표시되지 않으므로 렌더 트리에 포함되지 않습니다. 마찬가지로 <code>&lt;head&gt;</code> 태그나 그 안의 내용처럼 시각적으로 표현되지 않는 요소들도 렌더 트리에서 제외됩니다.</p>
+                <p>렌더 트리의 각 노드(보통 '렌더 객체' 또는 '렌더러'라고 불림)는 화면에 어떻게 보일지에 대한 정보, 즉 계산된 스타일(색상, 크기, 위치 등)을 모두 가지고 있습니다.</p>
+                <h3 class="text-2xl my-2">DOM 트리와 렌더 트리의 주요 차이점</h3>
+                <ul>
+                    <li><strong><code>display: none;</code> 처리:</strong> CSS에 의해 <code>display: none;</code>이 적용된 DOM 노드는 렌더 트리에 포함되지 않습니다. (참고: <code>visibility: hidden;</code>은 공간은 차지하되 보이지만 않게 하므로 렌더 트리에 포함됩니다.)</li>
+                    <li><strong>비시각적 요소 제외:</strong> <code>&lt;head&gt;</code>, <code>&lt;script&gt;</code>, <code>&lt;meta&gt;</code> 태그 등 화면에 직접 그려지지 않는 DOM 노드는 렌더 트리에 포함되지 않습니다.</li>
+                    <li><strong>가상 요소 포함 가능성:</strong> CSS의 <code>::before</code>나 <code>::after</code>와 같은 가상 요소는 DOM 트리에는 존재하지 않지만, 화면에 표시되므로 렌더 트리에 포함될 수 있습니다.</li>
+                    <li><strong>구조적 차이:</strong> 때로는 하나의 DOM 요소가 여러 렌더 객체로 표현될 수도 있습니다 (예: 인라인 요소가 여러 줄로 나뉘어 표시될 때).</li>
+                </ul>
+                <p class="note">렌더 트리 생성 과정은 DOM 트리와 CSSOM 트리가 완전히 구축된 후에 진행됩니다. 이 렌더 트리가 있어야 브라우저는 다음 단계인 '레이아웃'과 '페인팅'을 진행하여 사용자에게 웹 페이지를 보여줄 수 있습니다.</p>
+                <p>"렌더 트리는 실제 건축 현장에서 사용할 최종 시공 계획서와 같습니다. 어떤 자재(스타일)로 어떤 구조물(요소)을 어디에 어떻게 배치할지 모든 정보가 담겨 있습니다."</p>
+            </div>
+        `
+        },
+        "layout-paint": {
+            title: "화면 표시 완료: 레이아웃과 페인트",
+            navTitle: "그리기: 레이아웃 & 페인트",
+            group: "렌더링 파이프라인",
+            content: `
+            <div class="content-section">
+                <p>렌더 트리가 생성되면, 브라우저는 이 정보를 바탕으로 실제 화면에 웹 페이지를 그리는 두 가지 주요 단계를 진행합니다: <strong>레이아웃(Layout)</strong>과 <strong>페인트(Paint)</strong>입니다.</p>
+                <h3 class="text-2xl my-2">레이아웃 (Layout 또는 Reflow)</h3>
+                <p>레이아웃 단계에서는 렌더 트리의 각 노드가 화면의 정확히 어느 위치에, 어떤 크기로 배치되어야 하는지를 계산합니다. 이 과정은 '리플로우(Reflow)'라고도 불립니다.</p>
+                <p>브라우저는 뷰포트(viewport, 사용자에게 보이는 웹 페이지 영역) 내에서 각 요소의 기하학적 정보(너비, 높이, x/y 위치, 여백, 테두리 등)를 결정합니다. 부모 요소의 크기나 위치가 자식 요소에게 영향을 미치고, 형제 요소들 간의 관계도 고려됩니다.</p>
+                <p class="note">"마치 가구 배치도를 보고 실제 방에 가구를 어디에, 어떻게 놓을지 정확한 치수를 재고 위치를 정하는 것과 같습니다."</p>
+                <p>DOM 요소가 추가/삭제되거나, 요소의 크기/위치에 영향을 주는 CSS 속성(예: <code>width</code>, <code>height</code>, <code>margin</code>, <code>padding</code>, <code>font-size</code>, <code>position</code>, <code>left</code>, <code>top</code> 등)이 변경되거나, 브라우저 창의 크기가 변경되면 레이아웃 과정이 다시 발생할 수 있습니다. 레이아웃(리플로우)은 계산 비용이 상대적으로 큰 작업이므로, 잦은 리플로우는 웹 페이지 성능 저하의 원인이 될 수 있습니다.</p>
+                <h3 class="text-2xl my-2">페인트 (Paint 또는 Rasterize)</h3>
+                <p>레이아웃 단계에서 계산된 각 요소의 위치와 크기, 그리고 스타일 정보를 바탕으로 실제 화면의 픽셀에 내용을 그리는 과정입니다. 이 과정은 '래스터화(Rasterizing)'라고도 불립니다.</p>
+                <p>브라우저는 텍스트, 색상, 이미지, 테두리, 그림자 등 시각적인 부분을 픽셀 단위로 채워나갑니다. 페인트 과정은 여러 개의 레이어(layer)로 나누어 진행될 수 있습니다. 특정 요소가 변경되었을 때, 전체 화면을 다시 그리는 대신 변경된 레이어만 다시 그리면 되므로 효율성을 높일 수 있습니다. CSS의 특정 속성(예: <code>transform</code>, <code>opacity</code>)은 레이아웃을 다시 계산하지 않고 페인트 단계나 그 이후의 컴포지팅(Compositing) 단계에서 처리되어 성능상 이점을 가질 수 있습니다 (하드웨어 가속 활용 가능).</p>
+                <p class="note">"이제 계산된 대로 가구에 페인트칠을 하고 벽지를 바르는 등 실제 모습을 완성하는 단계입니다."</p>
+                <p>레이아웃 변경 없이 색상, 배경색 등 시각적인 스타일만 변경될 경우, 레이아웃(리플로우) 과정 없이 페인트(리페인트, Repaint) 과정만 발생할 수 있으며, 이는 리플로우보다는 비용이 적습니다.</p>
+                <p>이러한 레이아웃과 페인트 과정을 거쳐, 마침내 우리가 보는 웹 페이지가 화면에 나타나게 됩니다.</p>
+            </div>
+        `
+        },
+        "js-parsing-engine": {
+            title: "웹페이지에 생명력 부여: 자바스크립트 파싱과 엔진",
+            navTitle: "엔진: JS 파싱 & 엔진",
+            group: "JS 엔진 & 이벤트 루프",
+            content: `
+            <div class="content-section">
+                <p><strong>자바스크립트(JavaScript)</strong>는 웹 페이지를 동적으로 만들고 사용자와의 상호작용을 가능하게 하는 프로그래밍 언어입니다. HTML이 웹 페이지의 구조를, CSS가 디자인을 담당한다면, 자바스크립트는 웹 페이지의 '행동'을 담당합니다.</p>
+                <h3 class="text-2xl my-2">자바스크립트 파싱 과정</h3>
+                <p>브라우저가 HTML 문서를 파싱하다가 <code>&lt;script&gt;</code> 태그를 만나면, 일반적으로 HTML 파싱을 <strong>일시 중지</strong>하고 자바스크립트 코드를 다운로드(외부 파일인 경우)하여 파싱하고 실행합니다. (<code>async</code>나 <code>defer</code> 속성을 사용하면 이 동작을 변경할 수 있습니다.)</p>
+                <p>자바스크립트 엔진은 코드를 다음과 같은 과정을 거쳐 처리합니다:</p>
+                <ol class="list-decimal list-inside space-y-1">
+                    <li><strong>토크나이징(Tokenizing) / 렉싱(Lexing):</strong> 코드 문자열을 의미있는 조각인 '토큰(token)'으로 분해합니다.</li>
+                    <li><strong>파싱(Parsing):</strong> 토큰 스트림을 바탕으로 코드의 문법 구조를 나타내는 <strong>AST(Abstract Syntax Tree, 추상 구문 트리)</strong>를 생성합니다. AST는 코드의 구조를 계층적으로 표현한 것입니다.</li>
+                    <li><strong>컴파일(Compilation) / 인터프리테이션(Interpretation):</strong> AST를 기반으로 엔진이 실행할 수 있는 형태로 변환합니다. 현대 자바스크립트 엔진은 JIT(Just-In-Time) 컴파일러를 사용하여 인터프리터의 빠른 시작과 컴파일러의 최적화된 성능을 결합합니다. 이 과정에서 바이트코드(Bytecode)가 생성되기도 합니다.</li>
+                    <li><strong>실행(Execution):</strong> 변환된 코드가 실행됩니다.</li>
+                </ol>
+                <h4 class="text-xl my-2">AST(Abstract Syntax Tree) 예시:</h4>
+                <p>다음과 같은 간단한 자바스크립트 코드가 있다고 가정할 수 있습니다.</p>
+                <div class="code-block"><code>const a = 1 + 2;</code></div>
+                <p>이 코드에 대한 (개념적인) AST는 다음과 같을 수 있습니다:</p>
+                <div class="code-block"><code>Program
+└── VariableDeclaration (kind: "const")
+    └── Declarator
+        ├── Identifier (name: "a")
+        └── BinaryExpression (operator: "+")
+            ├── NumericLiteral (value: 1)
+            └── NumericLiteral (value: 2)</code></div>
+
+                <h3 class="text-2xl my-2">자바스크립트 엔진 동작 방식: 동시성 처리</h3>
+                <div class="warning-note">
+                    <p><strong>주의:</strong> JavaScript 자체는 다른 많은 프로그래밍 언어와 마찬가지로 기본적으로 <strong>동기적인(synchronous) 방식</strong>으로 함수 호출을 처리합니다. 즉, 하나의 작업이 끝나야 다음 작업이 시작됩니다.</p>
+                </div>
+                <p>하지만 JavaScript는 <strong>싱글 스레드(single-threaded)</strong>로 동작합니다. 이는 한 번에 하나의 작업만 처리할 수 있다는 의미입니다. 만약 콜 스택(Call Stack, 현재 실행 중인 함수들의 목록)에 있는 함수가 오랜 시간 실행되거나, 네트워크 요청과 같이 외부 이벤트의 완료를 기다려야 하는 경우, 다른 모든 작업이 멈추는 '블로킹(blocking)' 상태에 빠질 수 있습니다.</p>
+                <p>이러한 문제를 해결하고 비동기적인 작업을 효율적으로 처리하기 위해, 브라우저(또는 Node.js와 같은 런타임 환경)는 자바스크립트 엔진과 함께 여러 구성 요소를 사용합니다. 이 시스템 덕분에 자바스크립트는 싱글 스레드임에도 불구하고 여러 작업을 동시에 처리하는 것처럼 보일 수 있습니다.</p>
+                <h4 class="text-xl my-2">주요 구성 요소 요약:</h4>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><strong>Memory Heap (메모리 힙):</strong> 객체와 변수들이 할당되는 메모리 공간입니다.</li>
+                    <li><strong>Call Stack (콜 스택):</strong> 현재 실행 중인 함수의 호출 정보를 순서대로 쌓아두는 공간입니다. 함수가 호출되면 스택에 추가(push)되고, 함수 실행이 완료되면 스택에서 제거(pop)됩니다. (LIFO: Last In, First Out)</li>
+                    <li><strong>Web APIs (브라우저 제공 API) / Background Threads:</strong> <code>setTimeout</code>, <code>setInterval</code>, DOM 이벤트 핸들러, <code>fetch</code> API를 사용한 네트워크 요청 등 브라우저가 제공하는 비동기 기능 및 API입니다. 이러한 작업들은 자바스크립트 엔진의 메인 스레드가 아닌, 브라우저 내부의 별도 스레드에서 처리될 수 있습니다.</li>
+                    <li><strong>Callback Queue (콜백 큐) / Task Queue (태스크 큐) / Macrotask Queue (매크로태스크 큐):</strong> Web API에서 처리된 비동기 작업의 콜백 함수들이 대기하는 큐입니다. (FIFO: First In, First Out). 예: <code>setTimeout</code>의 콜백, <code>setInterval</code>의 콜백, 사용자 입력 이벤트 핸들러의 콜백, I/O 작업 콜백.</li>
+                    <li><strong>Microtask Queue (마이크로태스크 큐):</strong> Task Queue보다 우선순위가 높은 특별한 큐입니다. 현재 실행 중인 동기적 태스크가 완료된 직후, 그리고 다음 Task Queue의 태스크가 시작되기 전에 이 _큐에 있는 모든_ 마이크로태스크가 처리됩니다. 예: <code>Promise</code>의 <code>.then()</code>, <code>.catch()</code>, <code>.finally()</code> 콜백, <code>queueMicrotask()</code>로 등록된 콜백, <code>MutationObserver</code> 콜백.</li>
+                    <li><strong>Event Loop (이벤트 루프):</strong> 콜 스택과 콜백 큐(들)를 지속적으로 감시하는 프로세스입니다. 콜 스택이 비어있을 때, 이벤트 루프는 먼저 마이크로태스크 큐를 확인하고, 그 다음 태스크 큐를 확인하여 대기 중인 함수(콜백)를 가져와 콜 스택에 넣고 실행시키는 역할을 합니다.</li>
+                </ul>
+                <p class="note">이러한 구성 요소들의 상호작용을 통해 자바스크립트는 논블로킹(non-blocking) I/O와 효율적인 비동기 처리를 수행할 수 있게 됩니다.</p>
+            </div>
+        `
+        },
+        "js-call-stack": {
+            title: "콜 스택 (Call Stack)",
+            navTitle: "실행 순서: 콜 스택",
+            group: "JS 엔진 & 이벤트 루프",
+            content: `
+            <div class="content-section">
+                <p><strong>콜 스택(Call Stack)</strong>은 자바스크립트 코드가 실행될 때 함수 호출을 추적하는 메커니즘입니다. 기본적으로 '현재 어떤 함수가 실행 중이고, 해당 함수 내에서 어떤 다른 함수가 호출되었는가'와 같은 실행 컨텍스트의 목록을 관리합니다.</p>
+                <p>콜 스택은 명칭에서 알 수 있듯이 스택(Stack) 자료구조로 동작합니다. 즉, <strong>LIFO(Last-In, First-Out, 후입선출)</strong> 원칙을 따릅니다. 함수가 호출되면 해당 함수의 정보(실행 컨텍스트)가 스택의 최상단에 추가(push)되고, 함수 실행이 완료되어 반환(return)되면 스택의 최상단에서 제거(pop)됩니다.</p>
+
+                <h3 class="text-2xl my-2">일반적인 함수 호출의 경우</h3>
+                <div class="code-block"><code>console.log("첫 번째"); // 1. 스택에 console.log 추가 -> 실행 -> 제거
+console.log("두 번째"); // 2. 스택에 console.log 추가 -> 실행 -> 제거
+console.log("세 번째"); // 3. 스택에 console.log 추가 -> 실행 -> 제거</code></div>
+                <p>상기 코드는 각 <code>console.log</code> 함수가 순차적으로 콜 스택에 진입했다가 실행되고 이탈하는 단순한 과정을 보여줍니다. 각 단계는 다음과 같이 시각화할 수 있습니다:</p>
+                <div class="visualization-container">
+                    <div class="viz-step">
+                        <p class="viz-description">1. <code>console.log("첫 번째")</code> 호출</p>
+                        <div class="viz-box">
+                            <div class="viz-item">console.log("첫 번째")</div>
+                        </div>
+                        <p class="viz-description mt-2">실행 후 Pop → 스택 비움</p>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">2. <code>console.log("두 번째")</code> 호출</p>
+                        <div class="viz-box">
+                            <div class="viz-item">console.log("두 번째")</div>
+                        </div>
+                        <p class="viz-description mt-2">실행 후 Pop → 스택 비움</p>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">3. <code>console.log("세 번째")</code> 호출</p>
+                        <div class="viz-box">
+                            <div class="viz-item">console.log("세 번째")</div>
+                        </div>
+                        <p class="viz-description mt-2">실행 후 Pop → 스택 비움</p>
+                    </div>
+                </div>
+
+                <h3 class="text-2xl mt-8">함수 호출이 중첩된 경우</h3>
+                <div class="code-block"><code>function thirdFunction() {
+  console.log("C 함수 실행됨");
+}
+
+function secondFunction() {
+  thirdFunction();
+  console.log("B 함수 실행 후");
+}
+
+function firstFunction() {
+  secondFunction();
+  console.log("A 함수 실행 후");
+}
+
+firstFunction(); // (anonymous)는 전역 컨텍스트를 의미합니다.
+</code></div>
+                <p>상기 코드의 콜 스택 변화 과정은 다음과 같이 시각화할 수 있습니다 (아래에서 위로 쌓이며, 각 단계 후 다음 단계로 진행):</p>
+                <div class="visualization-container">
+                    <div class="viz-step">
+                        <p class="viz-description">호출 전 (스택 비움)</p>
+                        <div class="viz-box"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">1. <code>firstFunction()</code></p>
+                        <div class="viz-box"><div class="viz-item">firstFunction</div></div>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">2. <code>secondFunction()</code></p>
+                        <div class="viz-box"><div class="viz-item">secondFunction</div><div class="viz-item">firstFunction</div></div>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">3. <code>thirdFunction()</code></p>
+                        <div class="viz-box"><div class="viz-item">thirdFunction</div><div class="viz-item">secondFunction</div><div class="viz-item">firstFunction</div></div>
+                        <p class="viz-description mt-2"><code>console.log("C")</code> 실행</p>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">4. <code>thirdFunction()</code> Pop</p>
+                        <div class="viz-box"><div class="viz-item">secondFunction</div><div class="viz-item">firstFunction</div></div>
+                        <p class="viz-description mt-2"><code>console.log("B")</code> 실행</p>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                     <div class="viz-step">
+                        <p class="viz-description">5. <code>secondFunction()</code> Pop</p>
+                        <div class="viz-box"><div class="viz-item">firstFunction</div></div>
+                        <p class="viz-description mt-2"><code>console.log("A")</code> 실행</p>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">6. <code>firstFunction()</code> Pop</p>
+                        <div class="viz-box"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                    </div>
+                </div>
+
+                <h3 class="text-2xl mt-8">Stack Overflow (스택 오버플로우)</h3>
+                <p>만약 함수가 자기 자신을 계속해서 호출하는 재귀 함수(recursive function)에서 종료 조건이 없거나 잘못된 경우, 또는 함수 호출 깊이가 너무 깊어지면 콜 스택에 할당된 공간을 초과하게 됩니다. 이때 발생하는 에러가 바로 '스택 오버플로우'입니다.</p>
+                <div class="code-block"><code>function endless() {
+  endless(); // 자기 자신을 계속 호출합니다.
+}
+// endless(); // 이 함수를 호출하면 스택 오버플로우 에러 발생!
+</code></div>
+                <p class="mt-4">스택 오버플로우가 발생하면 스택이 무한히 쌓이는 것을 상상할 수 있습니다:</p>
+                <div class="visualization-container">
+                    <div class="viz-step">
+                        <p class="viz-description"><code>endless()</code> 반복 호출 시</p>
+                        <div class="viz-box" style="min-height: 200px;">
+                            <div class="viz-item">...</div>
+                            <div class="viz-item">endless()</div>
+                            <div class="viz-item">endless()</div>
+                            <div class="viz-item">endless()</div>
+                            <div class="viz-item">endless()</div>
+                        </div>
+                        <p class="viz-description mt-2 text-red-600 font-semibold">Stack Overflow Error 발생!</p>
+                    </div>
+                </div>
+
+                <h3 class="text-2xl mt-8">Stack Trace (스택 추적)</h3>
+                <p>코드 실행 중 에러가 발생했을 때, 콘솔에 표시되는 에러 메시지에는 종종 '스택 트레이스'가 포함됩니다. 스택 트레이스는 에러가 발생한 시점까지의 함수 호출 경로를 보여주며, 이는 콜 스택의 현재 상태를 반영합니다. 디버깅 시 에러의 원인을 찾는 데 매우 유용한 정보입니다.</p>
+                <div class="code-block"><code>Uncaught ReferenceError: x is not defined
+    at c (script.js:7:5)
+    at b (script.js:3:3)
+    at a (script.js:1:3)</code></div>
+                <p>상기 스택 트레이스는 <code>a</code> 함수가 <code>b</code> 함수를 호출했고, <code>b</code> 함수가 <code>c</code> 함수를 호출했으며, <code>c</code> 함수 내부(script.js 파일의 7번째 줄, 5번째 문자 위치)에서 정의되지 않은 변수 <code>x</code>를 사용하려다 에러가 발생했음을 알립니다.</p>
+                <p class="note">콜 스택은 자바스크립트의 동기적 실행 흐름을 이해하는 데 기본이 되며, 이후 설명할 이벤트 루프와 비동기 처리 방식을 이해하는 데 중요한 기초 개념입니다.</p>
+            </div>
+        `
+        },
+        "js-event-loop-queues": {
+            title: "이벤트 루프와 큐 (Event Loop & Queues)",
+            navTitle: "비동기 핵심: 이벤트 루프",
+            group: "JS 엔진 & 이벤트 루프",
+            content: `
+            <div class="content-section">
+                <p>자바스크립트는 싱글 스레드 기반이지만, 브라우저 환경(또는 Node.js)은 <strong>이벤트 루프(Event Loop)</strong>, <strong>태스크 큐(Task Queue)</strong>, <strong>마이크로태스크 큐(Microtask Queue)</strong>, 그리고 <strong>Web API</strong>와 같은 구성 요소들을 통해 비동기 작업을 효과적으로 처리합니다. 이 시스템 덕분에 시간이 오래 걸리는 작업(예: 네트워크 요청, 대용량 파일 처리)이나 특정 이벤트 발생을 기다리는 동안에도 브라우저가 멈추지 않고 다른 작업을 수행할 수 있습니다.</p>
+
+                <h3 class="text-2xl my-2">주요 구성 요소</h3>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><strong>Call Stack (콜 스택):</strong> 현재 실행 중인 동기 코드(함수)가 쌓이는 곳입니다. 비동기 작업의 콜백 함수도 실행될 때는 이벤트 루프에 의해 콜 스택으로 옮겨져 실행됩니다.</li>
+                    <li><strong>Web APIs (브라우저 API / Background Threads):</strong> <code>setTimeout</code>, <code>setInterval</code>, DOM 이벤트, <code>fetch</code> API 등 브라우저가 제공하는 기능입니다. 이러한 API 호출은 즉시 Web API 영역으로 전달되어 처리되며(예: 타이머 설정), 완료되면 콜백 함수가 해당 큐로 이동합니다. 이들은 자바스크립트 엔진의 메인 스레드가 아닌 별도의 스레드에서 실행될 수 있습니다.</li>
+                    <li><strong>Task Queue (태스크 큐, 또는 Macrotask Queue - 매크로태스크 큐):</strong> Web API에서 처리 완료된 비동기 작업의 콜백 함수들이 대기하는 큐(Queue, FIFO)입니다. 예: <code>setTimeout</code>/<code>setInterval</code>의 콜백, 사용자 입력 이벤트 핸들러(<code>click</code>, <code>keydown</code> 등), I/O 관련 콜백.</li>
+                    <li><strong>Microtask Queue (마이크로태스크 큐):</strong> 태스크 큐보다 높은 우선순위를 가지는 큐입니다. 현재 실행 중인 스크립트(동기 코드)가 종료된 직후, 그리고 다음 태스크 큐의 작업을 시작하기 전에 마이크로태스크 큐에 있는 모든 작업이 먼저 실행됩니다. 예: <code>Promise</code>의 <code>.then()</code>/<code>.catch()</code>/<code>.finally()</code> 콜백, <code>queueMicrotask()</code>로 등록된 콜백, <code>MutationObserver</code> 콜백.</li>
+                    <li><strong>Event Loop (이벤트 루프):</strong> 콜 스택과 큐(태스크 큐, 마이크로태스크 큐)를 지속적으로 감시하는 프로세스입니다. 콜 스택이 비어있으면, 이벤트 루프는 먼저 마이크로태스크 큐를 확인하고, 그 다음 태스크 큐를 확인하여 대기 중인 콜백 함수를 큐에서 꺼내어 콜 스택으로 푸시(push)하고, 콜 스택에서 해당 함수가 실행됩니다.</li>
+                </ul>
+
+                <h3 class="text-2xl my-2">이벤트 루프의 동작 과정 (단순화 모델)</h3>
+                <ol class="list-decimal list-inside space-y-1">
+                    <li>실행할 동기 코드가 있다면 콜 스택에서 모두 실행합니다.</li>
+                    <li>콜 스택이 비워지면, <strong>마이크로태스크 큐</strong>를 확인합니다.
+                        <ul class="list-disc list-inside ml-4">
+                            <li>마이크로태스크 큐에 작업이 있다면, 큐가 빌 때까지 모든 마이크로태스크를 순서대로 꺼내 콜 스택에 푸시(push)하여 실행합니다.</li>
+                            <li>하나의 마이크로태스크 실행 중 새로운 마이크로태스크가 큐에 추가되면, 그것도 이번 턴(현재의 이벤트 루프 주기)에 모두 처리됩니다.</li>
+                        </ul>
+                    </li>
+                    <li>(브라우저 환경의 경우) 필요한 경우 렌더링 업데이트를 수행합니다. (이 시점은 브라우저 최적화에 따라 다를 수 있으며, 모든 마이크로태스크 처리 후 또는 다음 매크로태스크 실행 전 등 다양합니다.)</li>
+                    <li><strong>태스크 큐 (매크로태스크 큐)</strong>를 확인합니다.
+                        <ul class="list-disc list-inside ml-4">
+                            <li>태스크 큐에 작업이 있다면, 가장 오래된 태스크 하나를 꺼내 콜 스택에 푸시(push)하고, 해당 태스크(콜백 함수)를 실행합니다. (한 번의 루프에서는 하나의 매크로태스크만 처리하는 것이 일반적입니다.)</li>
+                        </ul>
+                    </li>
+                    <li>1번 과정(또는 2번 과정, 상황에 따라)으로 돌아가 반복합니다.</li>
+                </ol>
+                <p class="note">"이벤트 루프는 마치 식당의 지배인과 같습니다. 주방(콜 스택)이 비었는지 확인하고, 특별 주문(마이크로태스크)이 있으면 먼저 처리하고, 그 다음 일반 주문(태스크)을 받아서 주방에 전달하여 실행시키는 역할을 합니다."</p>
+
+                <h3 class="text-2xl my-2">예제 코드를 통한 동작 이해</h3>
+                <p>다음 코드가 실행될 때 각 <code>console.log</code>가 어떤 순서로 출력될지 예측해볼 수 있습니다.</p>
+                <div class="code-block"><code>console.log('A: 동기 코드 시작');
+
+setTimeout(() => {
+  console.log('B: setTimeout 콜백 (매크로태스크)');
+}, 0);
+
+Promise.resolve().then(() => {
+  console.log('C: Promise.then 콜백 (마이크로태스크)');
+  setTimeout(() => {
+    console.log('D: Promise 내 setTimeout 콜백 (매크로태스크)');
+  }, 0);
+});
+
+queueMicrotask(() => {
+  console.log('E: queueMicrotask 콜백 (마이크로태스크)');
+});
+
+console.log('F: 동기 코드 종료');</code></div>
+                <p><strong>예상 실행 순서 및 시각화:</strong> (각 박스의 높이는 내용에 따라 유동적으로 표시됩니다.)</p>
+                <div class="visualization-container">
+                    <div class="viz-step">
+                        <p class="viz-description">1. 스크립트 실행 시작</p>
+                        <div class="event-loop-step-details">
+                            <span class="viz-box-title">콜 스택</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(전역)</div></div>
+                            <span class="viz-box-title mt-2">Web APIs</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">마이크로태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">로그</span><div class="viz-box static-log-box" style="min-height:20px; overflow-y: auto;"></div>
+                        </div>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">2. <code>log('A')</code> 콜 스택에서 실행</p>
+                         <div class="event-loop-step-details">
+                            <span class="viz-box-title">콜 스택</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">실행: log('A')</div></div>
+                            <span class="viz-box-title mt-2">Web APIs</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">마이크로태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">로그</span><div class="viz-box static-log-box" style="min-height:25px; overflow-y: auto;"><div class="log-output-viz-item">A: 동기 코드 시작</div></div>
+                        </div>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">3. <code>setTimeout(B)</code>: Web API 등록 & 즉시 콜백(B) 태스크 큐로 이동</p>
+                        <div class="event-loop-step-details">
+                            <span class="viz-box-title">콜 스택</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(log A 완료)</div></div>
+                            <span class="viz-box-title mt-2">Web APIs</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">Timer for B (0ms, 완료)</div></div>
+                            <span class="viz-box-title mt-2">마이크로태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">Callback (B)</div></div>
+                            <span class="viz-box-title mt-2">로그</span><div class="viz-box static-log-box" style="min-height:25px; overflow-y: auto;"><div class="log-output-viz-item">A: 동기 코드 시작</div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="visualization-container mt-4">
+                     <div class="viz-step">
+                        <p class="viz-description">4. <code>Promise.then(C)</code>: 콜백(C) 마이크로태스크 큐로 이동</p>
+                        <div class="event-loop-step-details">
+                           <span class="viz-box-title">콜 스택</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">Web APIs</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(Timer B 완료)</div></div>
+                            <span class="viz-box-title mt-2">마이크로태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">Callback (C)</div></div>
+                            <span class="viz-box-title mt-2">태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">Callback (B)</div></div>
+                            <span class="viz-box-title mt-2">로그</span><div class="viz-box static-log-box" style="min-height:25px; overflow-y: auto;"><div class="log-output-viz-item">A: 동기 코드 시작</div></div>
+                        </div>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                     <div class="viz-step">
+                        <p class="viz-description">5. <code>qMicrotask(E)</code>: 콜백(E) 마이크로태스크 큐로 이동</p>
+                        <div class="event-loop-step-details">
+                           <span class="viz-box-title">콜 스택</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">Web APIs</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">마이크로태스크 큐</span><div class="viz-box" style="min-height: 55px;"><div class="viz-item">Callback (C)</div><div class="viz-item">Callback (E)</div></div>
+                            <span class="viz-box-title mt-2">태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">Callback (B)</div></div>
+                            <span class="viz-box-title mt-2">로그</span><div class="viz-box static-log-box" style="min-height:25px; overflow-y: auto;"><div class="log-output-viz-item">A: 동기 코드 시작</div></div>
+                        </div>
+                    </div>
+                    <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">6. <code>log('F')</code> 콜 스택에서 실행</p>
+                        <div class="event-loop-step-details">
+                           <span class="viz-box-title">콜 스택</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">실행: log('F')</div></div>
+                            <span class="viz-box-title mt-2">Web APIs</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">마이크로태스크 큐</span><div class="viz-box" style="min-height: 55px;"><div class="viz-item">Callback (C)</div><div class="viz-item">Callback (E)</div></div>
+                            <span class="viz-box-title mt-2">태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">Callback (B)</div></div>
+                            <span class="viz-box-title mt-2">로그</span><div class="viz-box static-log-box" style="min-height:40px; overflow-y: auto;"><div class="log-output-viz-item">A: 동기 코드 시작</div><div class="log-output-viz-item">F: 동기 코드 종료</div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="visualization-container mt-4">
+                    <div class="viz-step">
+                        <p class="viz-description">7. 동기 코드 종료. <br>이벤트 루프: 마이크로태스크 큐에서 <code>Callback (C)</code>를 콜 스택으로 가져와 실행 <br>(내부 <code>setTimeout(D)</code> 처리)</p>
+                        <div class="event-loop-step-details">
+                           <span class="viz-box-title">콜 스택</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">실행: Callback (C)</div></div>
+                            <span class="viz-box-title mt-2">Web APIs</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">Timer for D (0ms, 완료)</div></div>
+                            <span class="viz-box-title mt-2">마이크로태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">Callback (E)</div></div>
+                            <span class="viz-box-title mt-2">태스크 큐</span><div class="viz-box" style="min-height: 55px;"><div class="viz-item">Callback (B)</div><div class="viz-item">Callback (D)</div></div>
+                            <span class="viz-box-title mt-2">로그</span><div class="viz-box static-log-box" style="min-height:55px; overflow-y: auto;"><div class="log-output-viz-item">A: 동기 코드 시작</div><div class="log-output-viz-item">F: 동기 코드 종료</div><div class="log-output-viz-item">C: Promise.then...</div></div>
+                        </div>
+                    </div>
+                     <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">8. 이벤트 루프: <br>마이크로태스크 큐에서 <code>Callback (E)</code>를 콜 스택으로 가져와 실행</p>
+                        <div class="event-loop-step-details">
+                           <span class="viz-box-title">콜 스택</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">실행: Callback (E)</div></div>
+                            <span class="viz-box-title mt-2">Web APIs</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(Timer D 완료)</div></div>
+                            <span class="viz-box-title mt-2">마이크로태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">태스크 큐</span><div class="viz-box" style="min-height: 55px;"><div class="viz-item">Callback (B)</div><div class="viz-item">Callback (D)</div></div>
+                            <span class="viz-box-title mt-2">로그</span><div class="viz-box static-log-box" style="min-height:70px; overflow-y: auto;"><div class="log-output-viz-item">A: 동기 코드 시작</div><div class="log-output-viz-item">F: 동기 코드 종료</div><div class="log-output-viz-item">C: Promise.then...</div><div class="log-output-viz-item">E: queueMicrotask...</div></div>
+                        </div>
+                    </div>
+                     <div class="viz-flow-arrow">➔</div>
+                    <div class="viz-step">
+                        <p class="viz-description">9. 마이크로태스크 큐 비움. <br>이벤트 루프: 태스크 큐에서 <code>Callback (B)</code>를 콜 스택으로 가져와 실행</p>
+                        <div class="event-loop-step-details">
+                           <span class="viz-box-title">콜 스택</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">실행: Callback (B)</div></div>
+                            <span class="viz-box-title mt-2">Web APIs</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">마이크로태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">Callback (D)</div></div>
+                            <span class="viz-box-title mt-2">로그</span><div class="viz-box static-log-box" style="min-height:85px; overflow-y: auto;"><div class="log-output-viz-item">A: 동기 코드 시작</div><div class="log-output-viz-item">F: 동기 코드 종료</div><div class="log-output-viz-item">C: Promise.then...</div><div class="log-output-viz-item">E: queueMicrotask...</div><div class="log-output-viz-item">B: setTimeout...</div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="visualization-container mt-4">
+                    <div class="viz-step">
+                        <p class="viz-description">10. 이벤트 루프: <br>태스크 큐에서 <code>Callback (D)</code>를 콜 스택으로 가져와 실행</p>
+                        <div class="event-loop-step-details">
+                           <span class="viz-box-title">콜 스택</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item">실행: Callback (D)</div></div>
+                            <span class="viz-box-title mt-2">Web APIs</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">마이크로태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">태스크 큐</span><div class="viz-box" style="min-height: 40px;"><div class="viz-item viz-item-empty">(비어있음)</div></div>
+                            <span class="viz-box-title mt-2">로그</span><div class="viz-box static-log-box" style="min-height:100px; overflow-y: auto;"><div class="log-output-viz-item">A: 동기 코드 시작</div><div class="log-output-viz-item">F: 동기 코드 종료</div><div class="log-output-viz-item">C: Promise.then...</div><div class="log-output-viz-item">E: queueMicrotask...</div><div class="log-output-viz-item">B: setTimeout...</div><div class="log-output-viz-item">D: Promise 내...</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="mt-4"><strong>최종 예상 출력 결과:</strong></p>
+                <div class="code-block"><code>A: 동기 코드 시작
+F: 동기 코드 종료
+C: Promise.then 콜백 (마이크로태스크)
+E: queueMicrotask 콜백 (마이크로태스크)
+B: setTimeout 콜백 (매크로태스크)
+D: Promise 내 setTimeout 콜백 (매크로태스크)</code></div>
+
+                <div id="eventLoopSimulation" class="interactive-area">
+                    <h3 class="text-xl font-semibold mb-4">이벤트 루프 시뮬레이션</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div id="callStackViz" class="event-loop-component"><h4 class="text-xl">콜 스택</h4></div>
+                        <div id="microtaskQueueViz" class="event-loop-component"><h4 class="text-xl">마이크로태스크 큐</h4></div>
+                        <div id="taskQueueViz" class="event-loop-component"><h4 class="text-xl">태스크 큐</h4></div>
+                    </div>
+                    <div class="mb-4 space-x-2 flex flex-wrap gap-2">
+                        <button id="simBtnSync" class="btn">console.log('동기')</button>
+                        <button id="simBtnTimeout" class="btn">setTimeout(로그, 0)</button>
+                        <button id="simBtnPromise" class="btn">Promise.then(로그)</button>
+                        <button id="simBtnMicrotask" class="btn">queueMicrotask(로그)</button>
+                    </div>
+                    <div class="mt-4 space-x-2 flex flex-wrap gap-2">
+                        <button id="simBtnNextStep" class="btn bg-blue-500 hover:bg-blue-600">다음 단계 실행</button>
+                        <button id="simBtnToggleAutoRun" class="btn bg-green-500 hover:bg-green-600">자동 실행 시작</button>
+                        <button id="simBtnReset" class="btn bg-red-500 hover:bg-red-600">초기화</button>
+                    </div>
+                    <div id="logOutputViz" class="code-block log-output mt-4"><h4 class="text-xl text-white">로그 출력:</h4></div>
+                </div>
+            </div>
+        `
+        },
+        "async-js": {
+            title: "비동기 처리 심층 탐구: Callback, Promise, Async/Await",
+            navTitle: "처리 방식: 비동기 JS",
+            group: "비동기 처리",
+            content: `
+            <div class="content-section">
+                <p>자바스크립트에서 비동기(asynchronous) 처리는 네트워크 요청, 파일 읽기/쓰기, 타이머 설정, 사용자 이벤트 처리 등 시간이 걸리거나 즉시 결과를 알 수 없는 작업을 다룰 때 필수적입니다. 비동기 처리를 통해 메인 스레드가 블로킹되는 것을 방지하고 애플리케이션의 반응성을 유지할 수 있습니다.</p>
+                <p>주요 비동기 처리 패턴으로는 콜백 함수, Promise, 그리고 async/await가 있습니다.</p>
+
+                <h3 class="text-2xl my-2">1. 콜백 함수 (Callback Functions)</h3>
+                <p>가장 기본적인 비동기 처리 방식입니다. 특정 작업이 완료된 후 실행될 함수(콜백 함수)를 다른 함수의 인자로 전달합니다.</p>
+                <h4 class="text-xl my-2">잘못된 비동기 처리 예시 (동기적 착각):</h4>
+                <p>비동기 함수의 결과를 동기적인 반환 값으로 받으려고 하면 문제가 발생합니다.</p>
+                <div class="code-block"><code>let postData;
+function fetchDataSyncAttempt(url) {
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true); // true는 비동기 요청을 의미합니다.
+  xhr.send(); // 요청 시작입니다.
+
+  // xhr.onload는 나중에 실행될 콜백이므로,
+  // fetchDataSyncAttempt 함수는 즉시 종료되어 undefined를 반환합니다.
+  xhr.onload = () => {
+    if (xhr.status === 200) {
+      postData = JSON.parse(xhr.response); // 전역 변수에 할당 (타이밍 이슈 발생 가능성 있음)
+      console.log("데이터 로드 완료 (콜백 내부):", postData);
+      // return JSON.parse(xhr.response); // 이 return은 fetchDataSyncAttempt의 return이 아닙니다!
+    } else {
+      console.error(\`Error \${xhr.status}: \${xhr.statusText}\`);
+    }
+  };
+  // 여기서 무언가를 반환해도, 비동기 작업의 결과를 반환하는 것이 아닙니다.
+}
+
+fetchDataSyncAttempt('https://jsonplaceholder.typicode.com/todos/1');
+console.log("fetchDataSyncAttempt 함수 호출 직후 postData:", postData); // undefined일 가능성 매우 높습니다.
+</code></div>
+                <h4 class="text-xl my-2">콜백 함수를 이용한 올바른 비동기 처리:</h4>
+                <p>작업 완료 후 실행할 함수를 명시적으로 전달합니다.</p>
+                <div class="code-block"><code>function fetchDataWithCallback(url, successCallback, failureCallback) {
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.send();
+
+  xhr.onload = () => {
+    if (xhr.status === 200) {
+      successCallback(JSON.parse(xhr.response)); // 성공 시 성공 콜백 호출합니다.
+    } else {
+      failureCallback(xhr.status, xhr.statusText); // 실패 시 실패 콜백 호출합니다.
+    }
+  };
+
+  xhr.onerror = () => { // 네트워크 에러 등
+    failureCallback('Network Error', 'Failed to connect');
+  };
+}
+
+fetchDataWithCallback(
+  'https://jsonplaceholder.typicode.com/todos/1',
+  (data) => { console.log("성공 (콜백):", data); },
+  (status, text) => { console.error(\`실패 (콜백): \${status} \${text}\`); }
+);
+console.log("fetchDataWithCallback 함수 호출 완료 (동기 코드)");
+</code></div>
+                <h4 class="text-xl my-2">콜백 헬 (Callback Hell) 문제:</h4>
+                <p>여러 비동기 작업을 순차적으로 처리해야 할 때 콜백 함수가 계속 중첩되어 코드의 가독성이 떨어지고 에러 처리가 복잡해지는 현상입니다. "파멸의 피라미드(Pyramid of Doom)"라고도 불립니다.</p>
+                <div class="code-block"><code>step1((result1) => {
+  step2(result1, (result2) => {
+    step3(result2, (result3) => {
+      step4(result3, (result4) => {
+        console.log('모든 단계 완료:', result4);
+        // 에러 처리는 각 단계마다 필요합니다...
+      }, handleError4);
+    }, handleError3);
+  }, handleError2);
+}, handleError1);</code></div>
+
+                <hr class="my-6">
+
+                <h3 class="text-2xl my-2">2. Promise</h3>
+                <p>Promise는 비동기 작업의 최종 완료(또는 실패)와 그 결과 값을 나타내는 객체입니다. 콜백 헬 문제를 해결하고 비동기 코드를 보다 체계적으로 관리할 수 있게 합니다.</p>
+                <p>Promise는 다음 세 가지 상태 중 하나를 가집니다:</p>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><strong>대기 (Pending):</strong> 초기 상태, 아직 작업이 완료되거나 실패하지 않았습니다.</li>
+                    <li><strong>이행 (Fulfilled / Resolved):</strong> 작업이 성공적으로 완료되었습니다. (결과 값을 가집니다)</li>
+                    <li><strong>거부 (Rejected):</strong> 작업이 실패했습니다. (실패 이유(에러 객체)를 가집니다)</li>
+                </ul>
+                <p>Promise는 <code>.then()</code> (성공 시), <code>.catch()</code> (실패 시), <code>.finally()</code> (성공/실패 무관하게 항상 실행) 메서드를 사용하여 결과 처리 및 에러 핸들링을 체인 형태로 연결할 수 있습니다.</p>
+                <div class="code-block"><code>function fetchDataWithPromise(url) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.send();
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        resolve(JSON.parse(xhr.response)); // 성공 시 resolve 호출합니다.
+      } else {
+        reject(new Error(\`Error \${xhr.status}: \${xhr.statusText}\`)); // 실패 시 reject 호출합니다.
+      }
+    };
+    xhr.onerror = () => {
+      reject(new Error('Network Error'));
+    };
+  });
+}
+
+fetchDataWithPromise('https://jsonplaceholder.typicode.com/todos/1')
+  .then(data => {
+    console.log("Promise 성공 (then 1):", data);
+    return fetchDataWithPromise('https://jsonplaceholder.typicode.com/todos/2'); // 다른 Promise 반환합니다.
+  })
+  .then(data2 => {
+    console.log("Promise 성공 (then 2):", data2);
+  })
+  .catch(error => {
+    console.error("Promise 실패 (catch):", error.message);
+  })
+  .finally(() => {
+    console.log("Promise 작업 완료 (finally)");
+  });
+
+console.log("fetchDataWithPromise 함수 호출 완료 (동기 코드)");
+</code></div>
+                <p><strong><code>Promise.all()</code>:</strong> 여러 개의 Promise를 병렬로 실행하고, 모든 Promise가 성공적으로 이행될 때까지 기다립니다. 하나라도 거부되면 즉시 전체 Promise가 거부됩니다.</p>
+                <p><strong><code>Promise.race()</code>:</strong> 여러 개의 Promise 중 가장 먼저 이행되거나 거부되는 Promise의 결과를 따릅니다.</p>
+
+                <hr class="my-6">
+
+                <h3 class="text-2xl my-2">3. Async/Await</h3>
+                <p>Async/await는 ES2017(ES8)에 도입된 문법으로, Promise를 기반으로 동작하며 비동기 코드를 마치 동기 코드처럼 더 읽기 쉽고 간결하게 작성할 수 있게 하는 "문법적 설탕(Syntactic Sugar)"입니다.</p>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><code>async</code> 키워드는 함수 선언 앞에 붙이며, 해당 함수가 항상 Promise를 반환한다는 것을 의미합니다. 함수가 값을 반환하면, 그 값으로 이행(resolve)되는 Promise가 반환됩니다. 함수에서 에러가 발생(throw)하면, 그 에러로 거부(reject)되는 Promise가 반환됩니다.</li>
+                    <li><code>await</code> 키워드는 <code>async</code> 함수 내에서만 사용할 수 있으며, Promise가 처리(이행 또는 거부)될 때까지 함수의 실행을 일시 중지합니다. Promise가 이행되면 그 결과 값을 반환하고, 거부되면 예외를 발생시킵니다.</li>
+                </ul>
+                <div class="code-block"><code>async function fetchMultipleData(url1, url2) {
+  console.log("Async 함수 시작...");
+  try {
+    const data1 = await fetchDataWithPromise(url1); // fetchDataWithPromise는 Promise를 반환한다고 가정합니다.
+    console.log("Async 데이터 1:", data1);
+
+    const data2 = await fetchDataWithPromise(url2);
+    console.log("Async 데이터 2:", data2);
+
+    return { data1, data2 }; // 이 객체로 이행되는 Promise가 반환됩니다.
+  } catch (error) {
+    console.error("Async 함수 내 에러:", error.message);
+    throw error; // 에러를 다시 던져서 호출부에서 처리할 수 있게 합니다.
+  } finally {
+    console.log("Async 함수 모든 작업 시도 완료.");
+  }
+}
+
+// async 함수 사용
+(async () => {
+  console.log("최상위 async 실행 시작");
+  try {
+    const result = await fetchMultipleData(
+      'https://jsonplaceholder.typicode.com/todos/3',
+      'https://jsonplaceholder.typicode.com/todos/4'
+    );
+    console.log("최종 결과:", result);
+  } catch (e) {
+    console.error("최상위 async에서 잡은 에러:", e.message);
+  }
+  console.log("최상위 async 실행 종료");
+})();
+
+console.log("최상위 async 함수 호출 완료 (동기 코드)");
+</code></div>
+                <p><code>await null;</code> 또는 <code>await Promise.resolve();</code>와 같은 표현은 현재 실행 흐름을 잠시 멈추고, <code>await</code> 이후의 코드를 마이크로태스크 큐에 등록하여 현재 동기적 코드 블록이 완료된 후 실행되도록 하는 효과가 있습니다.</p>
+
+                <hr class="my-6">
+                <h3 class="text-2xl my-2">종합 문제 예시 (복습)</h3>
+                <p>다음 코드의 출력 순서를 예측해볼 수 있습니다.</p>
+                <div class="code-block"><code>console.log("1 (동기)");
+
+setTimeout(() => console.log("2 (매크로태스크 setTimeout)"), 0);
+
+queueMicrotask(() => console.log("3 (마이크로태스크 queueMicrotask)"));
+
+Promise.resolve().then(() => {
+  console.log("4 (마이크로태스크 Promise then)");
+  Promise.resolve().then(() => console.log("4.1 (중첩된 마이크로 Promise then)"));
+});
+
+(async () => {
+  console.log("5 (동기, async 함수 내부)");
+  await Promise.resolve(); // 현재 동기 블록 후 마이크로태스크로 밀립니다.
+  console.log("6 (마이크로태스크, await 이후)");
+  setTimeout(() => console.log("6.1 (await 후의 매크로 setTimeout)"),0);
+})();
+
+console.log("7 (동기)");</code></div>
+                <p><strong>예상 출력 순서:</strong></p>
+                <div class="code-block"><code>1 (동기)
+5 (동기, async 함수 내부)
+7 (동기)
+3 (마이크로태스크 queueMicrotask)
+4 (마이크로태스크 Promise then)
+4.1 (중첩된 마이크로 Promise then)
+6 (마이크로태스크, await 이후)
+2 (매크로태스크 setTimeout)
+6.1 (await 후의 매크로 setTimeout)</code></div>
+                <p class="note">이처럼 콜백, Promise, async/await는 자바스크립트에서 비동기 작업을 다루는 핵심적인 방법들이며, 각각의 특징과 사용 사례를 이해하는 것이 중요합니다. 현대 자바스크립트 개발에서는 가독성과 에러 처리의 용이성 때문에 Promise와 async/await가 널리 사용됩니다.</p>
+            </div>
+        `
+        },
+        "advanced-topics": {
+            title: "심화 학습: Virtual DOM, Shadow DOM, 렌더링 최적화",
+            navTitle: "심화: 고급 주제",
+            group: "고급 주제",
+            content: `
+            <div class="content-section">
+                <p>웹 브라우저의 기본적인 동작 원리를 이해했다면, 이제 현대 프론트엔드 개발에서 자주 접하게 되는 몇 가지 고급 주제들에 대해 알아볼 차례입니다. 이 개념들은 웹 애플리케이션의 성능을 최적화하고, 코드의 모듈성과 재사용성을 높이는 데 중요한 역할을 합니다.</p>
+
+                <h3 class="text-2xl my-2">1. Virtual DOM (가상 DOM)</h3>
+                <p><strong>가상 DOM(Virtual Document Object Model)</strong>은 실제 DOM을 직접 조작하는 대신, 메모리 상에 가상의 DOM 표현(일반적으로 JavaScript 객체 형태)을 두고 변경 사항을 계산하여 실제 DOM에는 최소한의 변경만을 반영하는 프로그래밍 개념이자 패턴입니다. React, Vue, Svelte와 같은 많은 현대 자바스크립트 라이브러리 및 프레임워크에서 이 개념을 활용합니다.</p>
+                <h4 class="text-xl my-2">동작 원리 (간략히):</h4>
+                <ol class="list-decimal list-inside space-y-1">
+                    <li><strong>상태 변경(State Change):</strong> 애플리케이션의 상태(데이터)가 변경됩니다.</li>
+                    <li><strong>새로운 가상 DOM 트리 생성:</strong> 변경된 상태를 기반으로 새로운 가상 DOM 트리가 메모리에 생성됩니다.</li>
+                    <li><strong>비교 (Diffing / Reconciliation):</strong> 이전 가상 DOM 트리와 새로 생성된 가상 DOM 트리를 비교하여 실제 DOM에서 변경해야 할 최소한의 차이점(diff)을 찾아냅니다. 이 과정을 '조정(Reconciliation)'이라고도 합니다.</li>
+                    <li><strong>실제 DOM 업데이트 (Patch):</strong> 계산된 차이점만을 실제 DOM에 적용(patch)합니다. 이를 통해 불필요한 DOM 조작을 줄여 성능을 향상시킵니다.</li>
+                </ol>
+                <h4 class="text-xl my-2">장점:</h4>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><strong>성능 향상:</strong> 실제 DOM 조작은 상대적으로 느리고 비용이 큰 작업입니다. 가상 DOM은 여러 변경 사항을 메모리에서 일괄적으로 계산한 후 한 번에 실제 DOM에 반영함으로써, 특히 빈번한 UI 업데이트가 발생하는 복잡한 애플리케이션에서 성능상 이점을 가질 수 있습니다.</li>
+                    <li><strong>선언적 UI 작성:</strong> 개발자는 UI가 어떤 모습이어야 하는지만 선언적으로 기술하면, 라이브러리/프레임워크가 가상 DOM을 통해 실제 DOM 업데이트를 효율적으로 처리합니다.</li>
+                    <li><strong>플랫폼 간 호환성:</strong> 가상 DOM은 브라우저 환경뿐만 아니라 다른 환경(예: React Native를 통한 모바일 앱 개발)에서도 UI를 렌더링하는 추상화 계층으로 사용될 수 있습니다.</li>
+                </ul>
+                <h4 class="text-xl my-2">React에서의 HTML 구조 (개념적):</h4>
+                <p>React와 같은 SPA(Single Page Application) 프레임워크는 보통 하나의 HTML 파일(예: <code>index.html</code>)에 비어있는 루트(root) DOM 요소를 두고, JavaScript 번들 파일이 로드되면서 이 루트 요소 내부에 동적으로 전체 UI를 그려나갑니다.</p>
+                <div class="code-block"><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="ko"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;title&gt;My React App&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;noscript&gt;You need to enable JavaScript to run this app.&lt;/noscript&gt;
+    &lt;div id="root"&gt;&lt;/div&gt;
+    &lt;!-- React 컴포넌트들이 이 div#root 안에 렌더링됩니다. --&gt;
+    &lt;script src="/static/js/bundle.js"&gt;&lt;/script&gt;
+    &lt;!-- React 애플리케이션 로직이 포함된 JavaScript 번들 파일입니다. --&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></div>
+                <p class="note"><code>bundle.js</code> 파일 내의 React 코드가 <code>ReactDOM.createRoot(document.getElementById('root')).render(...)</code>와 같은 API를 사용하여 <code>div#root</code> 요소 내부에 가상 DOM을 기반으로 실제 DOM 요소들을 생성하고 관리합니다.</p>
+
+                <hr class="my-6">
+
+                <h3 class="text-2xl my-2">2. Shadow DOM (그림자 DOM)</h3>
+                <p><strong>Shadow DOM</strong>은 웹 컴포넌트(Web Components) 기술 스택의 핵심 부분으로, DOM의 특정 부분을 캡슐화하여 외부로부터 격리된 독립적인 DOM 트리를 만드는 기능입니다. 이를 통해 스타일과 스크립트의 스코프(scope, 유효 범위)를 제한하여 다른 부분과의 충돌을 방지하고, 재사용 가능한 컴포넌트를 만들 수 있습니다.</p>
+                <h4 class="text-xl my-2">주요 특징:</h4>
+                <ul class="list-disc list-inside space-y-1">
+                    <li><strong>캡슐화 (Encapsulation):</strong> Shadow DOM 내부는 외부 DOM 및 CSS의 영향을 기본적으로 받지 않으며, Shadow DOM 내부의 스타일 또한 외부 DOM에 영향을 주지 않습니다 (스타일 격리). JavaScript 또한 Shadow Root를 통해 접근하지 않으면 내부를 직접 조작하기 어렵습니다.</li>
+                    <li><strong>스타일 격리 (Style Encapsulation):</strong> Shadow DOM 내부에 정의된 <code>&lt;style&gt;</code> 태그는 해당 Shadow DOM 트리에만 적용됩니다. 외부 스타일 시트의 규칙이 기본적으로 침투하지 않습니다.</li>
+                    <li><strong>독립적인 DOM 트리:</strong> Shadow Host 요소에 연결된 Shadow Root는 자체적인 DOM 트리를 가집니다. 이 트리는 일반적인 DOM API로 조작할 수 있지만, 외부에서는 <code>element.shadowRoot</code>를 통해서만 접근할 수 있습니다(<code>mode: 'open'</code>인 경우).</li>
+                    <li><strong>재사용 가능한 컴포넌트:</strong> 웹 컴포넌트(Custom Elements + Shadow DOM + HTML Templates)를 만드는 데 핵심적인 역할을 하여, 모듈화되고 재사용 가능한 UI 요소를 만들 수 있게 합니다.</li>
+                    <li><strong><code>&lt;slot&gt;</code> 요소:</strong> Shadow DOM 외부의 콘텐츠(Light DOM)를 Shadow DOM 내부의 특정 위치에 '투영(project)'할 수 있게 하는 메커니즘입니다. 이를 통해 컴포넌트의 유연성을 높일 수 있습니다.</li>
+                </ul>
+                <h4 class="text-xl my-2">간단한 예시:</h4>
+                <div class="code-block"><code>&lt;!-- HTML --&gt;
+&lt;my-encapsulated-widget&gt;
+  &lt;span slot="widget-title"&gt;본인만의 위젯 제목&lt;/span&gt;
+  &lt;p&gt;이 내용은 기본 슬롯으로 들어갑니다.&lt;/p&gt;
+&lt;/my-encapsulated-widget&gt;
+
+&lt;script&gt;
+  class MyEncapsulatedWidget extends HTMLElement {
+    constructor() {
+      super(); // 항상 super()를 먼저 호출해야 합니다.
+
+      // Shadow DOM 생성 및 연결합니다.
+      const shadow = this.attachShadow({ mode: 'open' }); // 'open' 모드는 외부 JS에서 shadowRoot로 접근 가능합니다.
+
+      // Shadow DOM 내부 구조 정의합니다.
+      shadow.innerHTML = \\\`
+        &lt;style&gt;
+          /* 이 스타일은 이 Shadow DOM 내부에만 적용됩니다. */
+          .widget-container {
+            border: 2px solid blue;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f0f8ff;
+          }
+          h3 { /* Shadow DOM 내부 h3 */
+            color: navy;
+            margin-top: 0;
+            /* 폰트 크기는 아래 HTML에서 Tailwind 클래스로 적용됩니다. */
+          }
+          ::slotted(span[slot="widget-title"]) { /* slot으로 들어온 특정 요소 스타일링입니다. */
+            font-style: italic;
+            font-weight: bold;
+          }
+        &lt;/style&gt;
+        &lt;div class="widget-container"&gt;
+          &lt;h3 class="text-2xl"&gt;&lt;slot name="widget-title"&gt;기본 제목&lt;/slot&gt;&lt;/h3&gt;
+          &lt;hr&gt;
+          &lt;p&gt;이것은 Shadow DOM 내부의 고정된 텍스트입니다.&lt;/p&gt;
+          &lt;slot&gt;&lt;/slot&gt; &lt;!-- 이름 없는 기본 슬롯입니다. --&gt;
+        &lt;/div&gt;
+      \\\`;
+    }
+  }
+  // 커스텀 엘리먼트 정의합니다.
+  customElements.define('my-encapsulated-widget', MyEncapsulatedWidget);
+&lt;/script&gt;</code></div>
+                <p>"Shadow DOM은 웹 페이지 안에 또 다른 작은, 독립된 웹 페이지(또는 위젯)를 만드는 것과 같습니다. 서로의 스타일이나 스크립트가 간섭하지 않도록 보호합니다."</p>
+
+                <hr class="my-6">
+
+                <h3 class="text-2xl my-2">3. 렌더링 최적화 관련 스크립트 속성: defer와 async</h3>
+                <p><code>&lt;script&gt;</code> 태그의 <code>defer</code>와 <code>async</code> 속성은 자바스크립트 파일의 다운로드 및 실행 시점을 제어하여 페이지 렌더링 성능에 영향을 미칩니다.</p>
+                <ul>
+                    <li><strong>일반적인 <code>&lt;script&gt;</code> (속성 없음):</strong>
+                        <ul class="list-disc list-inside ml-4">
+                            <li>HTML 파싱 중 <code>&lt;script&gt;</code> 태그를 만나면 HTML 파싱을 <strong>중단</strong>합니다.</li>
+                            <li>스크립트 파일을 다운로드하고 실행합니다.</li>
+                            <li>스크립트 실행이 완료된 후 HTML 파싱을 재개합니다.</li>
+                            <li>이 방식은 렌더링을 차단(parser-blocking)하여 초기 페이지 로딩 속도를 느리게 할 수 있습니다.</li>
+                        </ul>
+                    </li>
+                    <li><strong><code>&lt;script defer&gt;</code>:</strong>
+                        <ul class="list-disc list-inside ml-4">
+                            <li>HTML 파싱과 병행하여 스크립트 파일을 <strong>비동기적으로 다운로드</strong>합니다. HTML 파싱을 차단하지 않습니다.</li>
+                            <li>스크립트는 HTML 파싱이 모두 끝난 후, <code>DOMContentLoaded</code> 이벤트가 발생하기 직전에, <code>defer</code> 스크립트들이 HTML에 나타난 순서대로 실행됩니다.</li>
+                            <li>DOM 조작이 필요한 스크립트에 적합하며, 렌더링 차단을 최소화합니다.</li>
+                        </ul>
+                    </li>
+                    <li><strong><code>&lt;script async&gt;</code>:</strong>
+                        <ul class="list-disc list-inside ml-4">
+                            <li>HTML 파싱과 병행하여 스크립트 파일을 <strong>비동기적으로 다운로드</strong>합니다. HTML 파싱을 차단하지 않습니다.</li>
+                            <li>스크립트 다운로드가 완료되는 즉시 HTML 파싱을 <strong>중단</strong>하고 스크립트를 실행합니다.</li>
+                            <li>스크립트 실행이 완료된 후 HTML 파싱을 재개합니다.</li>
+                            <li>여러 개의 <code>async</code> 스크립트가 있을 경우, 다운로드가 완료된 순서대로 실행되므로 실행 순서가 보장되지 않습니다.</li>
+                            <li>DOM에 의존하지 않는 독립적인 스크립트(예: 분석 스크립트, 광고 스크립트)에 적합합니다.</li>
+                        </ul>
+                    </li>
+                </ul>
+                <p class="note">일반적으로 페이지 하단(<code>&lt;/body&gt;</code> 태그 직전)에 스크립트를 배치하거나, <code>defer</code> 속성을 사용하는 것이 초기 렌더링 성능에 유리합니다.</p>
+
+                <hr class="my-6">
+                <h3 class="text-2xl my-2">4. requestAnimationFrame</h3>
+                <p><code>requestAnimationFrame(callback)</code>은 브라우저에게 다음 리페인트(repaint)가 진행되기 직전에 지정된 콜백 함수를 실행하도록 요청하는 Web API입니다. 이는 주로 부드러운 애니메이션을 구현하는 데 사용됩니다.</p>
+                <h4 class="text-xl my-2">특징:</h4>
+                <ul>
+                    <li><strong>브라우저 렌더링 주기에 동기화:</strong> 일반적으로 디스플레이의 주사율(예: 60Hz면 약 16.7ms마다)에 맞춰 콜백이 실행되므로, <code>setTimeout</code>을 사용한 애니메이션보다 더 자연스럽고 끊김 없는 움직임을 만들 수 있습니다.</li>
+                    <li><strong>성능 최적화:</strong> 현재 탭이 활성화되어 있지 않거나 페이지가 보이지 않을 때는 콜백 실행 빈도를 줄이거나 중지하여 불필요한 자원 소모를 막습니다.</li>
+                    <li><strong>별도의 큐 관리:</strong> <code>requestAnimationFrame</code>의 콜백은 일반적인 태스크 큐나 마이크로태스크 큐와는 다른, 애니메이션 프레임과 관련된 큐에서 처리됩니다. 이벤트 루프의 한 주기에서 동기 코드와 마이크로태스크가 모두 실행된 후, 그리고 다음 페인트 작업 직전에 실행됩니다.</li>
+                </ul>
+                <div class="code-block"><code>let startTime = null;
+const element = document.getElementById('animated-box'); // 애니메이션 대상 요소입니다.
+
+function animate(timestamp) {
+  if (!startTime) startTime = timestamp;
+  const progress = timestamp - startTime;
+
+  // 예: 2초 동안 200px 이동하는 애니메이션입니다.
+  // element가 실제로 존재할 때만 style 조작합니다.
+  if (element) {
+    element.style.transform = \\\`translateX(\\\${Math.min(progress / 10, 200)}px)\\\`;
+  }
+
+
+  if (progress < 2000) {
+    requestAnimationFrame(animate); // 다음 프레임에 다시 animate 함수 호출합니다.
+  }
+}
+</code></div>
+                <p>이러한 고급 주제들은 웹 애플리케이션의 사용자 경험과 성능을 한 단계 끌어올리는 데 중요한 역할을 합니다. 각 개념을 깊이 있게 학습하고 적절히 활용하는 것이 현대 프론트엔드 개발자의 중요한 역량 중 하나입니다.</p>
+            </div>
+        `
+        },
+        "further-learning": {
+            title: "부록: 프론트엔드 개발자가 알아두면 좋은 추가 지식",
+            navTitle: "📚 추가 지식",
+            group: "더 나아가기",
+            content: `
+            <div class="content-section">
+                <p>웹 브라우저의 동작 원리와 핵심 JavaScript 개념을 이해하는 것 외에도, 현대 프론트엔드 개발자로서 역량을 키우기 위해 알아두면 유용한 추가 지식들이 있습니다. 이러한 지식들은 실제 프로젝트를 진행하거나 팀과 협업할 때 큰 도움이 될 수 있습니다.</p>
+
+                <h3 class="text-2xl my-2">1. 배포 파이프라인 이해</h3>
+                <p>개발한 웹 애플리케이션을 사용자에게 실제로 제공하기까지의 과정을 '배포 파이프라인'이라고 합니다. 이 과정을 이해하면 개발 효율성과 안정성을 높일 수 있습니다.</p>
+                <ul>
+                    <li><strong>정적 파일 호스팅 및 CDN(Content Delivery Network):</strong> 빌드된 HTML, CSS, JavaScript, 이미지 파일 등을 어떻게 효율적으로 사용자에게 전달할 것인가? (예: AWS S3, Netlify, Vercel, Firebase Hosting, Cloudflare)</li>
+                    <li><strong>버전 관리 및 롤백 전략:</strong> Git과 같은 버전 관리 시스템을 사용하여 코드 변경 사항을 추적하고, 문제 발생 시 이전 버전으로 쉽게 돌아갈 수 있는 전략이 필요합니다.</li>
+                    <li><strong>캐시 무효화(Cache Busting):</strong> 사용자가 항상 최신 버전의 파일을 받을 수 있도록 브라우저나 CDN 캐시를 효과적으로 관리하는 방법이 중요합니다 (예: 파일 이름에 해시값 사용).</li>
+                    <li><strong>CI/CD (Continuous Integration / Continuous Deployment or Delivery):</strong> 코드 변경 시 자동으로 테스트, 빌드, 배포 과정을 수행하여 개발 생산성을 높이는 자동화 파이프라인입니다. (예: Jenkins, GitHub Actions, GitLab CI)</li>
+                </ul>
+
+                <h3 class="text-2xl my-2">2. Reverse Proxy (Nginx, Apache 등) 설정</h3>
+                <p>리버스 프록시는 클라이언트의 요청을 받아 내부 서버로 전달하고, 내부 서버의 응답을 다시 클라이언트에게 전달하는 중간 서버입니다. 프론트엔드 개발자도 기본적인 설정을 이해하면 유용합니다.</p>
+                <ul>
+                    <li><strong>SPA(Single Page Application) 라우팅 처리:</strong> 클라이언트 사이드 라우팅을 사용하는 SPA에서 새로고침 시 404 에러가 발생하는 것을 방지하기 위해 특정 경로의 요청을 항상 <code>index.html</code>로 보내도록 설정합니다.</li>
+                    <li><strong>SSL/TLS 종료(TLS Termination):</strong> HTTPS 통신을 위한 SSL/TLS 암호화 및 복호화 처리를 리버스 프록시에서 담당합니다.</li>
+                    <li><strong>압축(Gzip, Brotli) 및 캐싱 헤더 제어:</strong> 전송 데이터 크기를 줄이고 브라우저 캐시를 효율적으로 사용하도록 HTTP 헤더를 설정합니다.</li>
+                    <li><strong>로드 밸런싱:</strong> 여러 서버에 트래픽을 분산시켜 안정성과 성능을 향상시킵니다.</li>
+                </ul>
+
+                <h3 class="text-2xl my-2">3. 보안과 인증</h3>
+                <p>웹 애플리케이션의 보안은 매우 중요하며, 프론트엔드 개발자도 기본적인 보안 개념과 대응 방법을 알고 있어야 합니다.</p>
+                <ul>
+                    <li><strong>XSS (Cross-Site Scripting) 방어:</strong> 신뢰할 수 없는 사용자 입력값을 화면에 표시할 때 발생할 수 있는 스크립트 주입 공격을 방어해야 합니다. (예: 입력값 이스케이프 처리)</li>
+                    <li><strong>CSRF (Cross-Site Request Forgery) 방어:</strong> 사용자가 자신의 의지와 무관하게 공격자가 의도한 행위(수정, 삭제 등)를 특정 웹사이트에 요청하게 만드는 공격을 방어해야 합니다. (예: CSRF 토큰 사용)</li>
+                    <li><strong>CSP (Content Security Policy):</strong> 신뢰할 수 있는 콘텐츠 소스(스크립트, 스타일, 이미지 등)를 지정하여 특정 유형의 공격을 완화하는 HTTP 헤더입니다.</li>
+                    <li><strong>CORS (Cross-Origin Resource Sharing):</strong> 다른 출처(도메인, 프로토콜, 포트)의 리소스를 안전하게 요청하고 사용할 수 있도록 하는 메커니즘입니다.</li>
+                    <li><strong>OAuth 2.0 / JWT (JSON Web Tokens):</strong> 안전한 사용자 인증 및 권한 부여 방식을 이해해야 합니다.</li>
+                    <li><strong>HTTPS의 중요성:</strong> 모든 통신은 암호화되어야 합니다.</li>
+                </ul>
+
+                <h3 class="text-2xl my-2">4. 성능 최적화 심화</h3>
+                <p>브라우저 렌더링 원리를 넘어선 다양한 성능 최적화 기법들이 있습니다.</p>
+                <ul>
+                    <li><strong>이미지 최적화:</strong> 적절한 이미지 포맷(WebP, AVIF 등) 사용, 이미지 압축, 반응형 이미지(<code>&lt;picture&gt;</code>, <code>srcset</code>), 레이지 로딩(Lazy Loading)이 필요합니다.</li>
+                    <li><strong>코드 스플리팅(Code Splitting) 및 트리 쉐이킹(Tree Shaking):</strong> JavaScript 번들 크기를 줄여 초기 로딩 속도를 개선합니다. (Webpack, Rollup 등 번들러 활용)</li>
+                    <li><strong>HTTP/2, HTTP/3:</strong> 더 빠르고 효율적인 통신 프로토콜을 활용합니다.</li>
+                    <li><strong>HSTS (HTTP Strict Transport Security):</strong> 웹사이트가 항상 HTTPS로만 접속되도록 강제하는 보안 헤더입니다.</li>
+                    <li><strong>브라우저 개발자 도구 활용:</strong> Performance 탭, Lighthouse 등을 사용하여 성능 병목 지점을 분석하고 개선합니다.</li>
+                </ul>
+
+                <h3 class="text-2xl my-2">5. 로그, 모니터링, 알림</h3>
+                <p>운영 중인 웹 애플리케이션에서 발생하는 에러를 추적하고, 사용자 경험을 모니터링하며, 문제 발생 시 신속하게 알림을 받는 시스템 구축의 중요성을 이해해야 합니다.</p>
+                <ul>
+                    <li><strong>클라이언트 사이드 에러 로깅:</strong> Sentry, Datadog RUM, LogRocket 등과 같은 서비스를 사용하여 JavaScript 에러 및 사용자 세션 정보를 수집합니다.</li>
+                    <li><strong>성능 모니터링 (RUM - Real User Monitoring):</strong> 실제 사용자의 웹 페이지 로딩 속도, 상호작용 시간 등을 측정하여 성능 개선 지표로 활용합니다.</li>
+                    <li><strong>서버 사이드 로그와의 연동:</strong> 프론트엔드에서 발생한 문제와 백엔드 로그를 연관지어 분석할 수 있는 시스템이 필요합니다. (예: ELK Stack - Elasticsearch, Logstash, Kibana)</li>
+                </ul>
+                <p class="note">이러한 추가 지식들은 당장 모든 것을 깊이 있게 알아야 한다는 의미는 아닙니다. 하지만 프론트엔드 개발자로서 성장해나가면서 점차적으로 학습하고 경험을 쌓아나가면, 더 넓은 시야를 가지고 문제 해결 능력을 키우며, 더 나은 웹 애플리케이션을 만드는 데 기여할 수 있을 것입니다.</p>
+
+                <hr class="my-6">
+                <h3 class="text-2xl my-2">참고: Node.js 환경과의 이벤트 루프 차이점</h3>
+                <p>브라우저 환경과 Node.js 환경은 모두 자바스크립트를 실행하기 위한 런타임이며, 이벤트 루프를 기반으로 비동기 작업을 처리합니다. 하지만 몇 가지 중요한 차이점이 존재합니다.</p>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">항목</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">브라우저 환경</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Node.js 환경</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap"><strong>주요 목적</strong></td>
+                            <td class="px-6 py-4">웹 페이지 렌더링, 사용자 인터랙션</td>
+                            <td class="px-6 py-4">서버 사이드 애플리케이션, 네트워킹, 파일 시스템 접근</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap"><strong>Web APIs</strong></td>
+                            <td class="px-6 py-4">DOM API, <code>window</code> 객체, <code>fetch</code>, <code>XMLHttpRequest</code>, <code>localStorage</code>, <code>setTimeout</code>, <code>requestAnimationFrame</code> 등 있습니다.</td>
+                            <td class="px-6 py-4"><code>fs</code> (파일 시스템), <code>http</code>/<code>https</code> (네트워킹), <code>path</code>, <code>os</code>, <code>process</code> 객체, <code>setTimeout</code>, <code>setImmediate</code> 등 있습니다. (DOM 관련 API 없음)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap"><strong>이벤트 루프 구현</strong></td>
+                            <td class="px-6 py-4">HTML5 표준에 정의된 이벤트 루프 모델을 따릅니다. 브라우저 벤더마다 약간의 차이가 있을 수 있습니다.</td>
+                            <td class="px-6 py-4">libuv 라이브러리를 기반으로 한 자체 이벤트 루프를 구현합니다. 여러 페이즈(phase)로 구성됩니다 (timers, poll, check, close callbacks 등).</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap"><strong><code>setTimeout</code> vs <code>setImmediate</code></strong></td>
+                            <td class="px-6 py-4"><code>setImmediate</code> API가 없습니다. (<code>setTimeout(fn, 0)</code>이 유사하게 사용되나 동작 방식은 다릅니다)</td>
+                            <td class="px-6 py-4"><code>setImmediate(callback)</code>: 현재 poll 페이즈 완료 후 check 페이즈에서 실행됩니다. I/O 작업 직후 실행 보장에 유리합니다.<br><code>setTimeout(callback, 0)</code>: timers 페이즈에서 실행됩니다. 최소 지연시간(보통 1ms 이상) 후 실행됩니다. 실행 순서는 시스템 부하에 따라 <code>setImmediate</code>와 달라질 수 있습니다.</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap"><strong>Microtask 우선순위</strong></td>
+                            <td class="px-6 py-4"><code>Promise.then/catch/finally</code>, <code>queueMicrotask</code>, <code>MutationObserver</code> 등이 마이크로태스크 큐에 들어갑니다. 현재 태스크 완료 후 모든 마이크로태스크가 실행됩니다.</td>
+                            <td class="px-6 py-4"><code>process.nextTick(callback)</code>: 다른 모든 마이크로태스크(예: Promise 콜백)보다 높은 우선순위를 가집니다. 현재 작업 완료 직후 즉시 실행됩니다.<br><code>Promise.then/catch/finally</code> 등도 마이크로태스크로 처리됩니다.</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap"><strong>렌더링 관련 API</strong></td>
+                            <td class="px-6 py-4"><code>requestAnimationFrame</code> 등이 존재합니다.</td>
+                            <td class="px-6 py-4">없습니다 (서버 환경이므로 UI 렌더링 개념 없음).</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>이러한 차이점을 이해하는 것은 브라우저와 Node.js 환경 모두에서 자바스크립트를 효과적으로 사용하고, 특히 비동기 코드의 동작을 정확히 예측하는 데 중요합니다.</p>
+            </div>
+        `
+        }
+    };
+
+    // 네비게이션 구조 정의
+    const navStructure = [
+        { id: "intro", group: null },
+        { title: "렌더링 파이프라인", isGroup: true },
+        { id: "rendering-overview", group: "렌더링 파이프라인" },
+        { id: "html-dom", group: "렌더링 파이프라인" },
+        { id: "css-cssom", group: "렌더링 파이프라인" },
+        { id: "render-tree", group: "렌더링 파이프라인" },
+        { id: "layout-paint", group: "렌더링 파이프라인" },
+        { title: "JS 엔진 & 이벤트 루프", isGroup: true },
+        { id: "js-parsing-engine", group: "JS 엔진 & 이벤트 루프" },
+        { id: "js-call-stack", group: "JS 엔진 & 이벤트 루프" },
+        { id: "js-event-loop-queues", group: "JS 엔진 & 이벤트 루프" },
+        { title: "비동기 처리", isGroup: true },
+        { id: "async-js", group: "비동기 처리" },
+        { title: "고급 주제", isGroup: true },
+        { id: "advanced-topics", group: "고급 주제" },
+        { title: "더 나아가기", isGroup: true },
+        { id: "further-learning", group: "더 나아가기" }
+    ];
+
+
+    // 네비게이션 메뉴 생성 함수
+    function initNavigation() {
+        const navElement = document.getElementById('mainNav');
+        navElement.innerHTML = ''; // 네비게이션 초기화
+        let currentGroup = null;
+        navStructure.forEach(item => {
+            if (item.isGroup) {
+                const groupTitle = document.createElement('h3');
+                groupTitle.className = 'nav-group-title';
+                groupTitle.textContent = item.title;
+                navElement.appendChild(groupTitle);
+                currentGroup = item.title;
+            } else {
+                const data = contentData[item.id];
+                if (data) {
+                    const link = document.createElement('a');
+                    link.href = `#${item.id}`;
+                    link.className = 'nav-link';
+                    link.textContent = data.navTitle || data.title;
+                    link.dataset.id = item.id; // data-id 속성으로 ID 저장
+                    navElement.appendChild(link);
+                }
+            }
+        });
+    }
+
+    // 콘텐츠 로드 함수
+    function loadContent(id) {
+        const contentArea = document.getElementById('contentArea');
+        const data = contentData[id];
+        if (data) {
+            document.title = data.title; // 브라우저 탭 제목 변경
+            contentArea.innerHTML = `<h1 class="text-4xl font-bold mb-6 content-title">${data.title}</h1>${data.content}`;
+
+            // 현재 활성화된 네비게이션 링크 스타일 업데이트
+            document.querySelectorAll('#mainNav .nav-link').forEach(link => {
+                link.classList.toggle('active', link.dataset.id === id);
+            });
+
+            // 특정 페이지 로드 시 추가 스크립트 실행
+            if (id === 'js-event-loop-queues') {
+                initEventLoopSimulation();
+            }
+            // 콘텐츠 로드 후 스크롤 맨 위로 이동
+            if(contentArea) contentArea.scrollTop = 0;
+            const mainElement = document.querySelector('main.flex-1');
+            if(mainElement) mainElement.scrollTop = 0;
+
+        } else {
+            // 요청한 ID의 콘텐츠가 없을 경우, 기본 페이지(첫 번째 항목)로 리디렉션
+            const defaultId = navStructure.find(item => !item.isGroup)?.id || 'intro';
+            if (contentData[defaultId]) {
+                history.replaceState({ id: defaultId }, contentData[defaultId].title, `#${defaultId}`);
+                loadContent(defaultId);
+            } else {
+                contentArea.innerHTML = '<p class="text-red-500">선택한 콘텐츠를 찾을 수 없습니다.</p>';
+            }
+        }
+    }
+
+    // 네비게이션 클릭 이벤트 처리
+    function handleNavigation(event) {
+        if (event.target.tagName === 'A' && event.target.dataset.id) {
+            event.preventDefault(); // 기본 링크 동작 방지
+            const id = event.target.dataset.id;
+            if (contentData[id]) {
+                history.pushState({ id }, contentData[id].title, `#${id}`); // 브라우저 히스토리 업데이트
+                loadContent(id);
+            } else {
+                console.error("요청한 ID에 대한 콘텐츠가 없습니다:", id);
+                // 안전 장치: 정의되지 않은 ID 요청 시 기본 페이지로 이동
+                const defaultId = navStructure.find(item => !item.isGroup)?.id || 'intro';
+                history.pushState({ id: defaultId }, contentData[defaultId].title, `#${defaultId}`);
+                loadContent(defaultId);
+            }
+        }
+    }
+
+    // 이벤트 루프 시뮬레이션 초기화 함수
+    function initEventLoopSimulation() {
+        const callStackViz = document.getElementById('callStackViz');
+        const microtaskQueueViz = document.getElementById('microtaskQueueViz');
+        const taskQueueViz = document.getElementById('taskQueueViz');
+        const logOutputViz = document.getElementById('logOutputViz');
+
+        const simBtnSync = document.getElementById('simBtnSync');
+        const simBtnTimeout = document.getElementById('simBtnTimeout');
+        const simBtnPromise = document.getElementById('simBtnPromise');
+        const simBtnMicrotask = document.getElementById('simBtnMicrotask');
+
+        const simBtnPrevStep = document.getElementById('simBtnPrevStep'); // 이전 단계 버튼 (현재 미사용)
+        const simBtnNextStep = document.getElementById('simBtnNextStep');
+        const simBtnToggleAutoRun = document.getElementById('simBtnToggleAutoRun');
+        const simBtnReset = document.getElementById('simBtnReset');
+
+        let callStack = [];
+        let microtaskQueue = [];
+        let taskQueue = [];
+        let logOutput = ['<h4 class="text-xl text-white">로그 출력:</h4>'];
+        let taskIdCounter = 0;
+        let simulationSpeed = 1000; // 자동 실행 속도 (ms)
+        let autoRunIntervalId = null;
+        let isAutoRunning = false;
+
+        // 시각화 업데이트 함수
+        function renderVisualizations() {
+            if(callStackViz) callStackViz.innerHTML = '<h4 class="text-xl">콜 스택</h4>' + (callStack.length > 0 ? callStack.map(task => `<div class="task-item">${task.name}</div>`).join('') : '<div class="text-gray-400 italic p-2">(비어있음)</div>');
+            if(microtaskQueueViz) microtaskQueueViz.innerHTML = '<h4 class="text-xl">마이크로태스크 큐</h4>' + (microtaskQueue.length > 0 ? microtaskQueue.map(task => `<div class="task-item">${task.name}</div>`).join('') : '<div class="text-gray-400 italic p-2">(비어있음)</div>');
+            if(taskQueueViz) taskQueueViz.innerHTML = '<h4 class="text-xl">태스크 큐</h4>' + (taskQueue.length > 0 ? taskQueue.map(task => `<div class="task-item">${task.name}</div>`).join('') : '<div class="text-gray-400 italic p-2">(비어있음)</div>');
+            if(logOutputViz) {
+                logOutputViz.innerHTML = logOutput.join('');
+                logOutputViz.scrollTop = logOutputViz.scrollHeight; // 항상 최신 로그가 보이도록 스크롤
+            }
+        }
+
+        // 로그 추가 함수
+        function addToLog(message) {
+            logOutput.push(`<p class="text-sm text-white">${new Date().toLocaleTimeString()}: ${message}</p>`);
+            renderVisualizations();
+        }
+
+        // 시뮬레이션 초기화
+        function resetSimulation() {
+            callStack = [];
+            microtaskQueue = [];
+            taskQueue = [];
+            logOutput = ['<h4 class="text-xl text-white">로그 출력:</h4>'];
+            taskIdCounter = 0;
+            if (autoRunIntervalId) {
+                clearInterval(autoRunIntervalId);
+                autoRunIntervalId = null;
+            }
+            isAutoRunning = false;
+            if(simBtnToggleAutoRun) simBtnToggleAutoRun.textContent = '자동 실행 시작';
+            if(simBtnNextStep) simBtnNextStep.disabled = false;
+            if(simBtnToggleAutoRun) simBtnToggleAutoRun.disabled = false;
+            addToLog("시뮬레이션 초기화 완료됨.");
+            renderVisualizations();
+        }
+
+        // 다음 시뮬레이션 단계 처리
+        async function processNextSimulationStep() {
+            // 1. 콜 스택에 작업이 있으면 실행
+            if (callStack.length > 0) {
+                const task = callStack.pop(); // LIFO
+                addToLog(`[콜 스택] '${task.name}' 실행 및 제거됨.`);
+                if (task.action) task.action(); // 실제 로그 출력 등 작업 수행
+                renderVisualizations();
+                return true; // 작업 처리됨
+            }
+
+            // 2. 콜 스택이 비어있으면 마이크로태스크 큐 확인
+            if (microtaskQueue.length > 0) {
+                const microtask = microtaskQueue.shift(); // FIFO
+                callStack.push(microtask);
+                addToLog(`[이벤트 루프] 마이크로태스크 '${microtask.name}' 콜 스택으로 이동됨.`);
+                renderVisualizations();
+                return true; // 작업 처리됨
+            }
+
+            // 3. 마이크로태스크 큐도 비어있으면 태스크 큐 확인 (매크로태스크)
+            if (taskQueue.length > 0) {
+                const task = taskQueue.shift(); // FIFO
+                callStack.push(task);
+                addToLog(`[이벤트 루프] 태스크 '${task.name}' 콜 스택으로 이동됨.`);
+                renderVisualizations();
+                return true; // 작업 처리됨
+            }
+
+            // 모든 큐가 비어있으면 대기
+            addToLog("[이벤트 루프] 현재 처리할 작업 없음. 대기 중.");
+            if (isAutoRunning) { // 자동 실행 중이었다면 중지
+                toggleAutoRun();
+            }
+            return false; // 처리할 작업 없음
+        }
+
+        // 자동 실행 토글
+        function toggleAutoRun() {
+            isAutoRunning = !isAutoRunning;
+            if (isAutoRunning) {
+                if(simBtnToggleAutoRun) simBtnToggleAutoRun.textContent = '일시 정지';
+                addToLog("자동 실행 시작됨.");
+                autoRunIntervalId = setInterval(async () => {
+                    const processed = await processNextSimulationStep();
+                    if (!processed && autoRunIntervalId) { // 더 이상 처리할 작업이 없으면 자동 실행 중지
+                        toggleAutoRun(); // 자동 실행 상태 변경 및 인터벌 정리
+                    }
+                }, simulationSpeed);
+                if(simBtnNextStep) simBtnNextStep.disabled = true; // 자동 실행 중에는 수동 다음 단계 비활성화
+            } else {
+                if (autoRunIntervalId) {
+                    clearInterval(autoRunIntervalId);
+                    autoRunIntervalId = null;
+                }
+                if(simBtnToggleAutoRun) simBtnToggleAutoRun.textContent = callStack.length > 0 || microtaskQueue.length > 0 || taskQueue.length > 0 ? '자동 실행 재개' : '자동 실행 시작';
+                addToLog("자동 실행 일시 정지됨.");
+                if(simBtnNextStep) simBtnNextStep.disabled = false; // 수동 다음 단계 활성화
+            }
+        }
+
+        // 버튼 이벤트 리스너 연결
+        if(simBtnReset) simBtnReset.addEventListener('click', resetSimulation);
+        if(simBtnNextStep) simBtnNextStep.addEventListener('click', () => {
+            if(isAutoRunning) toggleAutoRun(); // 자동 실행 중이었다면 멈춤
+            processNextSimulationStep();
+        });
+        if(simBtnToggleAutoRun) simBtnToggleAutoRun.addEventListener('click', toggleAutoRun);
+        if(simBtnPrevStep) simBtnPrevStep.classList.add('btn-disabled'); // 이전 단계 버튼은 현재 미구현
+
+
+        // 작업 추가 버튼 이벤트 리스너
+        if(simBtnSync) simBtnSync.addEventListener('click', () => {
+            if(isAutoRunning) toggleAutoRun();
+            const id = ++taskIdCounter;
+            const task = { id, name: `동기 작업 ${id}`, action: () => addToLog(`[로그] 동기 작업 ${id} 실행됨.`) };
+            callStack.push(task);
+            addToLog(`'${task.name}' 콜 스택에 추가됨.`);
+            renderVisualizations();
+        });
+
+        if(simBtnTimeout) simBtnTimeout.addEventListener('click', () => {
+            if(isAutoRunning) toggleAutoRun();
+            const id = ++taskIdCounter;
+            const taskName = `setTimeout 콜백 ${id}`;
+            addToLog(`'${taskName}' Web API 통해 타이머 설정됨 (0ms).`);
+            renderVisualizations();
+
+            // setTimeout은 Web API에 의해 처리되고, 완료 후 콜백이 태스크 큐로 이동
+            setTimeout(() => {
+                taskQueue.push({ id, name: taskName, action: () => addToLog(`[로그] ${taskName} 실행됨.`) });
+                addToLog(`'${taskName}' 태스크 큐에 추가됨.`);
+                renderVisualizations();
+            }, 0);
+        });
+
+        if(simBtnPromise) simBtnPromise.addEventListener('click', () => {
+            if(isAutoRunning) toggleAutoRun();
+            const id = ++taskIdCounter;
+            const taskName = `Promise.then 콜백 ${id}`;
+            addToLog(`'${taskName}' (마이크로태스크) 등록됨.`);
+            // Promise.resolve().then()의 콜백은 마이크로태스크 큐로 이동
+            Promise.resolve().then(() => {
+                microtaskQueue.push({ id, name: taskName, action: () => addToLog(`[로그] ${taskName} 실행됨.`) });
+                addToLog(`'${taskName}' 마이크로태스크 큐에 추가됨.`);
+                renderVisualizations();
+            });
+        });
+
+        if(simBtnMicrotask) simBtnMicrotask.addEventListener('click', () => {
+            if(isAutoRunning) toggleAutoRun();
+            const id = ++taskIdCounter;
+            const taskName = `queueMicrotask 콜백 ${id}`;
+            addToLog(`'${taskName}' (마이크로태스크) 등록됨.`);
+            // queueMicrotask의 콜백은 마이크로태스크 큐로 이동
+            queueMicrotask(() => {
+                microtaskQueue.push({ id, name: taskName, action: () => addToLog(`[로그] ${taskName} 실행됨.`) });
+                addToLog(`'${taskName}' 마이크로태스크 큐에 추가됨.`);
+                renderVisualizations();
+            });
+        });
+
+        resetSimulation(); // 시뮬레이션 초기 상태로 시작
+    }
+
+
+    // 브라우저 뒤로/앞으로 가기 버튼 처리
+    window.addEventListener('popstate', (event) => {
+        if (event.state && event.state.id) {
+            loadContent(event.state.id);
+        } else {
+            // 히스토리 상태가 없으면 (예: 초기 로드 후 뒤로가기) 첫 번째 항목 로드
+            const firstItemId = navStructure.find(item => !item.isGroup)?.id || 'intro';
+            loadContent(firstItemId);
+        }
+    });
+
+    // DOM 로드 완료 시 초기화
+    document.addEventListener('DOMContentLoaded', () => {
+        initNavigation();
+        const mainNav = document.getElementById('mainNav');
+        if(mainNav) mainNav.addEventListener('click', handleNavigation);
+
+        // URL 해시를 기반으로 초기 콘텐츠 로드
+        const initialId = window.location.hash ? window.location.hash.substring(1) : (navStructure.find(item => !item.isGroup)?.id || 'intro');
+
+        if (contentData[initialId]) {
+            history.replaceState({ id: initialId }, contentData[initialId].title, `#${initialId}`); // 현재 URL을 히스토리에 반영 (새로고침 대비)
+            loadContent(initialId);
+        } else {
+            // 유효하지 않은 해시값일 경우 기본 페이지로
+            const defaultId = navStructure.find(item => !item.isGroup)?.id || 'intro';
+            history.replaceState({ id: defaultId }, contentData[defaultId].title, `#${defaultId}`);
+            loadContent(defaultId);
+        }
+    });
+</script>
+</body>
+</html>
