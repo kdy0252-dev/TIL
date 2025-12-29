@@ -2,7 +2,7 @@
 id: Spring Cloud AWS
 started: 2025-08-11
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---

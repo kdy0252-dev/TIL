@@ -2,7 +2,7 @@
 id: Spring Cloud Security
 started: 2025-07-11
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---
@@ -10,7 +10,7 @@ group:
 
 ## 1. 개요 (Overview)
 **Spring Cloud Security**는 Spring Cloud 기반의 MSA 환경에서 보안, 특히 **OAuth2**와 **OIDC(OpenID Connect)** 기반의 인증 및 인가를 쉽게 구현할 수 있도록 지원하는 라이브러리 모음입니다.
-과거에는 독자적인 기능을 많이 제공했으나, 현재는 대부분의 기능이 **Spring Security 5+**의 OAuth2 Client 및 Resource Server 기능으로 통합되었으며, Spring Cloud Security는 이를 MSA 환경(Gateway, FeignClient 등)에 맞게 연결해주는 접착제 역할을 주로 수행합니다.
+과거에는 독자적인 기능을 많이 제공했으나, 현재는 대부분의 기능이 **Spring Security 5+** 의 OAuth2 Client 및 Resource Server 기능으로 통합되었으며, Spring Cloud Security는 이를 MSA 환경(Gateway, FeignClient 등)에 맞게 연결해주는 접착제 역할을 주로 수행합니다.
 
 ---
 

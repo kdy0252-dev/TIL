@@ -2,7 +2,7 @@
 id: Bucket4j
 started: 2025-06-25
 tags:
-  - ⏳DOING
+  - ✅DONE
 group: []
 ---
 # Bucket4j-RateLimiter

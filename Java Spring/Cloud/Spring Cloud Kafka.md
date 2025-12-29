@@ -2,7 +2,7 @@
 id: Spring Cloud Kafka
 started: 2025-08-05
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---

@@ -2,7 +2,7 @@
 id: Spring Cloud CloudFoundry
 started: 2025-09-24
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---

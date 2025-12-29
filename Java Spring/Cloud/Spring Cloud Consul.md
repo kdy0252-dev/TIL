@@ -2,14 +2,14 @@
 id: Spring Cloud Consul
 started: 2025-09-0-16
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---
 # Spring Cloud Consul
 
 ## 1. 개요 (Overview)
-**Spring Cloud Consul**은 HashiCorp사의 **Consul**을 사용하여 **서비스 디스커버리(Service Discovery)**와 **분산 설정(Configuration)**을 제공하는 프로젝트입니다.
+**Spring Cloud Consul**은 HashiCorp사의 **Consul**을 사용하여 **서비스 디스커버리(Service Discovery)** 와 **분산 설정(Configuration)** 을 제공하는 프로젝트입니다.
 Zookeeper보다 설치 및 운영이 쉽고, Eureka보다 기능이 다양(Service Mesh, DNS 인터페이스 등)하여 최근 MSA 환경에서 가장 널리 쓰이는 솔루션 중 하나입니다.
 
 ---

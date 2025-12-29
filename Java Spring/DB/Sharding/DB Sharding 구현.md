@@ -2,7 +2,7 @@
 id: DB Sharding
 started: 2025-05-14
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring DB]]"
 ---

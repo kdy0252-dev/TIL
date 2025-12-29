@@ -1,10 +1,8 @@
 ---
 id: CQRS Pattern
 started: 2025-04-10
-
 tags:
-  - ⏳DOING
-
+  - ✅DONE
 group:
   - "[[Java Spring Design Pattern]]"
 ---
@@ -141,7 +139,7 @@ public class OrderQueryController {
 
 ### 5.3 정말로 필요한가?
 CQRS는 시스템 복잡도를 2배 이상 높입니다. (동기화 이슈, 관리 포인트 증가).
-단순한 관리자 페이지나 트래픽이 적은 서비스에는 **절대 도입하지 마세요.** Level 1(코드 분리) 정도면 충분합니다.
+단순한 관리자 페이지나 트래픽이 적은 서비스에는 **추천하지 않음.** Level 1(코드 분리) 정도면 충분.
 
 # Reference
 - [Martin Fowler - CQRS](https://martinfowler.com/bliki/CQRS.html)

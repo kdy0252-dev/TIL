@@ -2,14 +2,14 @@
 id: Spring Cloud Zookeeper
 started: 2025-10-08
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---
 # Spring Cloud Zookeeper
 
 ## 1. 개요 (Overview)
-**Spring Cloud Zookeeper**는 Apache Zookeeper를 이용하여 분산 시스템의 **서비스 디스커버리(Service Discovery)**와 **분산 설정(Distributed Configuration)** 기능을 제공하는 프로젝트입니다.
+**Spring Cloud Zookeeper**는 Apache Zookeeper를 이용하여 분산 시스템의 **서비스 디스커버리(Service Discovery)** 와 **분산 설정(Distributed Configuration)** 기능을 제공하는 프로젝트입니다.
 Eureka나 Consul의 대안으로 사용될 수 있으며, 이미 하둡(Hadoop)이나 카프카(Kafka) 생태계를 구축하여 주키퍼를 운영 중인 조직에서 도입하기 유리합니다.
 
 ---
@@ -17,7 +17,7 @@ Eureka나 Consul의 대안으로 사용될 수 있으며, 이미 하둡(Hadoop)�
 ## 2. 주요 기능 (Key Features)
 
 ### 2.1 Service Discovery
-- **원리**: 애플리케이션이 시작될 때 Zookeeper의 특정 경로(예: `/services/my-service/instance-id`)에 **임시 노드(Ephemeral Node)**를 생성합니다.
+- **원리**: 애플리케이션이 시작될 때 Zookeeper의 특정 경로(예: `/services/my-service/instance-id`)에 **임시 노드(Ephemeral Node)** 를 생성합니다.
 - **Health Check**: 애플리케이션과 주키퍼 간의 세션이 끊어지면(장애 발생 시) 임시 노드가 자동으로 삭제되므로, 자연스럽게 목록에서 제외됩니다.
 - **Ribbon/LoadBalancer 연동**: `DiscoveryClient` 구현체를 제공하므로 Spring Cloud LoadBalancer와 투명하게 연동됩니다.
 

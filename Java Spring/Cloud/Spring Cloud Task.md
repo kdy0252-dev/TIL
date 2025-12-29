@@ -2,7 +2,7 @@
 id: Spring Cloud Task
 started: 2025-08-28
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---

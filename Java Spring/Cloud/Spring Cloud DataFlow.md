@@ -2,14 +2,14 @@
 id: Spring Cloud DataFlow
 started: 2025-10-15
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---
 # Spring Cloud DataFlow (SCDF)
 
 ## 1. 개요 (Overview)
-**Spring Cloud DataFlow (SCDF)**는 마이크로서비스 기반의 **데이터 처리 파이프라인(Streaming & Batch)**을 구축하고 오케스트레이션하기 위한 통합 플랫폼입니다.
+**Spring Cloud DataFlow (SCDF)** 는 마이크로서비스 기반의 **데이터 처리 파이프라인(Streaming & Batch)** 을 구축하고 오케스트레이션하기 위한 통합 플랫폼입니다.
 Spring Cloud Stream(실시간 스트리밍)과 Spring Cloud Task(단기 배치 작업)로 개발된 애플리케이션들을 시각적으로 정의하고, Kubernetes, Cloud Foundry 등의 플랫폼에 배포합니다.
 과거의 **Spring XD**를 재설계하여, 모놀리식 런타임을 버리고 **Cloud Native** 아키텍처로 진화하였습니다.
 

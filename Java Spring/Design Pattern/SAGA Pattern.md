@@ -1,21 +1,20 @@
 ---
 id: SAGA Pattern
 started: 2025-04-10
-
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Design Pattern]]"
 ---
 # SAGA Pattern (Distributed Transaction)
 
 ## 1. 개요 (Overview)
-**SAGA Pattern**은 마이크로서비스 아키텍처(MSA)에서 **분산 트랜잭션(Distributed Transaction)**의 데이터 일관성을 보장하기 위한 가장 대표적인 패턴입니다.
+**SAGA Pattern**은 마이크로서비스 아키텍처(MSA)에서 **분산 트랜잭션(Distributed Transaction)** 의 데이터 일관성을 보장하기 위한 가장 대표적인 패턴입니다.
 
 모놀리식 환경에서는 단일 데이터베이스의 ACID 트랜잭션(`@Transactional`)을 통해 데이터 무결성을 쉽게 보장할 수 있습니다. 하지만 서비스가 분리되어 DB가 쪼개지면, 더 이상 단일 트랜잭션으로 묶을 수 없습니다.
-과거에는 **2PC (Two-Phase Commit, XA Transaction)**를 사용했으나, 이는 블로킹 방식으로 성능이 매우 떨어지고, NoSQL 등 다양한 저장소를 지원하지 못하며, 코디네이터(Coordinator)가 단일 장애 지점(SPOF)이 되는 문제가 있어 클라우드 환경에는 적합하지 않습니다.
+과거에는 **2PC (Two-Phase Commit, XA Transaction)** 를 사용했으나, 이는 블로킹 방식으로 성능이 매우 떨어지고, NoSQL 등 다양한 저장소를 지원하지 못하며, 코디네이터(Coordinator)가 단일 장애 지점(SPOF)이 되는 문제가 있어 클라우드 환경에는 적합하지 않습니다.
 
-SAGA는 긴 트랜잭션(Long Running Transaction)을 **여러 개의 짧은 로컬 트랜잭션의 연속**으로 쪼개고, 중간에 실패하면 **보상 트랜잭션(Compensating Transaction)**을 실행하여 이전 단계를 취소하며 **최종 일관성(Eventual Consistency)**을 달성합니다.
+SAGA는 긴 트랜잭션(Long Running Transaction)을 **여러 개의 짧은 로컬 트랜잭션의 연속**으로 쪼개고, 중간에 실패하면 **보상 트랜잭션(Compensating Transaction)** 을 실행하여 이전 단계를 취소하며 **최종 일관성(Eventual Consistency)** 을 달성합니다.
 
 ---
 

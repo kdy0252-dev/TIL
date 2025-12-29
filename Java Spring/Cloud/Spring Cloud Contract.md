@@ -1,10 +1,8 @@
 ---
 id: Spring Cloud Contract
 started: 2025-09-27
-
 tags:
-  - ⏳DOING
-
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---
@@ -12,7 +10,7 @@ group:
 
 ## 1. 개요 (Overview)
 **Spring Cloud Contract**는 마이크로서비스 환경에서 **소비자 주도 계약(Consumer-Driven Contract, CDC)** 테스트를 구현하기 위한 프레임워크입니다.
-서비스 간의 통신 약속(API 스펙)을 "계약(Contract)"이라는 코드로 정의하고, 이를 기반으로 **Provider(서버)**와 **Consumer(클라이언트)** 양쪽에서 자동으로 테스트를 수행하여 호환성을 보장합니다.
+서비스 간의 통신 약속(API 스펙)을 "계약(Contract)"이라는 코드로 정의하고, 이를 기반으로 **Provider(서버)** 와 **Consumer(클라이언트)** 양쪽에서 자동으로 테스트를 수행하여 호환성을 보장합니다.
 
 MSA에서 흔히 발생하는 "Prod 환경에 배포했더니 API 스펙이 안 맞아서 죽는 문제"를 빌드 타임에 미리 잡아내는 것이 목표입니다.
 

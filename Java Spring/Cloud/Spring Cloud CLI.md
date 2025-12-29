@@ -2,14 +2,14 @@
 id: Spring Cloud CLI
 started: 2025-09-07
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---
 # Spring Cloud CLI
 
 ## 1. 개요 (Overview)
-**Spring Cloud CLI (Command Line Interface)**는 Spring Boot CLI의 기능을 확장하여, 복잡한 빌드 스크립트(Gradle/Maven) 없이 **Groovy 스크립트**만으로 Spring Cloud 마이크로서비스 애플리케이션을 빠르게 작성, 실행, 배포할 수 있게 해주는 도구입니다.
+**Spring Cloud CLI (Command Line Interface)** 는 Spring Boot CLI의 기능을 확장하여, 복잡한 빌드 스크립트(Gradle/Maven) 없이 **Groovy 스크립트**만으로 Spring Cloud 마이크로서비스 애플리케이션을 빠르게 작성, 실행, 배포할 수 있게 해주는 도구입니다.
 
 초기 아이디어나 프로토타입을 검증할 때("Config Server가 정말 이렇게 동작하나?") 매우 유용하며, `launcher` 기능을 통해 Kafka, Redis 같은 인프라스트럭처 서비스도 쉽게 띄울 수 있습니다.
 

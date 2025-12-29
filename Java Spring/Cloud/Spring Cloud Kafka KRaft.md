@@ -2,14 +2,14 @@
 id: Spring Cloud Kafka KRaft
 started: 2025-08-19
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---
 # Spring Cloud Kafka KRaft (Kafka Raft Metadata mode)
 
 ## 1. 개요 (Overview)
-**KRaft (Kafka Raft)**는 Apache Kafka 2.8 버전부터 도입된 새로운 합의 프로토콜(Consensus Protocol) 기반의 메타데이터 관리 모드입니다.
+**KRaft (Kafka Raft)** 는 Apache Kafka 2.8 버전부터 도입된 새로운 합의 프로토콜(Consensus Protocol) 기반의 메타데이터 관리 모드입니다.
 기존 Kafka는 Zookeeper에 메타데이터(브로커 정보, 토픽, 파티션 등)를 저장하고 관리했으나, KRaft 모드를 사용하면 **Zookeeper 의존성을 완전히 제거**할 수 있습니다.
 이로 인해 Kafka 클러스터의 아키텍처가 단순해지고, 확장성(Scalability)과 안정성이 크게 향상됩니다. (3.3 버전부터 Production Ready)
 

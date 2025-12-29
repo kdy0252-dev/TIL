@@ -2,15 +2,15 @@
 id: Spring Cloud BUS
 started: 2025-08-24
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---
 # Spring Cloud Bus
 
 ## 1. 개요 (Overview)
-**Spring Cloud Bus**는 분산 시스템의 노드들을 **경량 메시지 브로커(RabbitMQ, Kafka)**로 연결하여, 상태 변경(State Change)이나 이벤트(Event)를 브로드캐스팅(Broadcasting)하는 프레임워크입니다.
-가장 대표적인 사용 사례는 **Spring Cloud Config의 설정 변경 사항을 전체 마이크로서비스에 실시간으로 전파(Refresh)**하는 것입니다. 각 노드마다 일일이 API를 호출할 필요 없이, 버스에 메시지 하나만 쏘면 모든 노드가 이를 받아 처리합니다.
+**Spring Cloud Bus**는 분산 시스템의 노드들을 **경량 메시지 브로커(RabbitMQ, Kafka)** 로 연결하여, 상태 변경(State Change)이나 이벤트(Event)를 브로드캐스팅(Broadcasting)하는 프레임워크입니다.
+가장 대표적인 사용 사례는 **Spring Cloud Config의 설정 변경 사항을 전체 마이크로서비스에 실시간으로 전파(Refresh)** 하는 것입니다. 각 노드마다 일일이 API를 호출할 필요 없이, 버스에 메시지 하나만 쏘면 모든 노드가 이를 받아 처리합니다.
 
 ---
 

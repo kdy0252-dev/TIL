@@ -2,7 +2,7 @@
 id: MinIO
 started: 2025-12-10
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring]]"
 ---

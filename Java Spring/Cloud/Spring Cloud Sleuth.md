@@ -2,14 +2,14 @@
 id: Spring Cloud Sleuth
 started: 2025-08-01
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---
 # Spring Cloud Sleuth (Micrometer Tracing)
 
 ## 1. 개요 (Overview)
-**Spring Cloud Sleuth**는 분산 시스템 환경(MSA)에서 **분산 추적(Distributed Tracing)**을 구현해주는 라이브러리입니다.
+**Spring Cloud Sleuth**는 분산 시스템 환경(MSA)에서 **분산 추적(Distributed Tracing)** 을 구현해주는 라이브러리입니다.
 하나의 사용자 요청이 여러 마이크로서비스를 거쳐 처리될 때, 로그에 고유한 ID(Trace ID)를 남겨서 전체 흐름을 연결하고 병목 구간을 파악할 수 있게 해줍니다.
 
 > **[IMPORTANT]**

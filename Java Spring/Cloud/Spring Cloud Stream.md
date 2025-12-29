@@ -2,7 +2,7 @@
 id: Spring Cloud Stream
 started: 2025-08-15
 tags:
-  - ⏳DOING
+  - ✅DONE
 group:
   - "[[Java Spring Cloud]]"
 ---
@@ -10,7 +10,7 @@ group:
 
 ## 1. 개요 (Overview)
 **Spring Cloud Stream**은 메시지 기반 마이크로서비스를 구축하기 위한 **프레임워크**입니다.
-가장 큰 특징은 **미들웨어(메시지 브로커)와의 결합을 끊어내는 추상화(Abstraction)**입니다. 개발자는 Kafka나 RabbitMQ의 구체적인 API를 몰라도, 비즈니스 로직(Producer, Processor, Consumer)에만 집중할 수 있습니다. 브로커 교체 시 코드 변경 없이 설정(Binder)만 바꾸면 됩니다.
+가장 큰 특징은 **미들웨어(메시지 브로커)와의 결합을 끊어내는 추상화(Abstraction)** 입니다. 개발자는 Kafka나 RabbitMQ의 구체적인 API를 몰라도, 비즈니스 로직(Producer, Processor, Consumer)에만 집중할 수 있습니다. 브로커 교체 시 코드 변경 없이 설정(Binder)만 바꾸면 됩니다.
 
 ---
 

@@ -2,13 +2,13 @@
 id: Isolation Level
 started: 2025-05-14
 tags:
-  - ⏳DOING
+  - ✅DONE
 group: []
 ---
 # Isolation Level (트랜잭션 격리 수준)
 
 ## 1. 개요 (Overview)
-**Isolation Level(격리 수준)**은 트랜잭션의 ACID 성질 중 **Isolation(고립성)** 을 보장하기 위한 설정으로, 동시에 여러 트랜잭션이 수행될 때 서로의 데이터에 미치는 영향을 제어하는 단계를 의미합니다.
+**Isolation Level(격리 수준)** 은 트랜잭션의 ACID 성질 중 **Isolation** 을 보장하기 위한 설정으로, 동시에 여러 트랜잭션이 수행될 때 서로의 데이터에 미치는 영향을 제어하는 단계를 의미합니다.
 
 데이터베이스는 동시성(Concurrency)과 무결성(Data Integrity)라는 상충되는 두 가지 목표를 달성해야 합니다.
 - **격리 수준이 높으면**: 데이터 무결성은 완벽해지지만, 락킹(Locking)으로 인해 동시성이 떨어져 성능이 저하됩니다.
