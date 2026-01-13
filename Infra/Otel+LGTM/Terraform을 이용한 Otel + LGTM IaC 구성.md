@@ -375,7 +375,7 @@ resource "helm_release" "mimir" {
 ---
 ### 2.6 분산 트레이싱: Grafana Tempo
 마이크로서비스 간의 복잡한 호출 관계를 추적하는 Tempo를 구성합니다.
-```hcl
+```yaml
 # https://artifacthub.io/packages/helm/grafana/tempo-distributed
 resource "helm_release" "tempo" {
   name             = "tempo"
@@ -473,10 +473,9 @@ resource "helm_release" "tempo" {
 }
 ```
 
-> **💡 설명 및 구현 포인트**
-> - **OTLP(OpenTelemetry Protocol) 준비 완료**: `extraPorts` 설정으로 `4317` 포트를 명시적으로 열었습니다. 이는 Tempo가 "나는 표준 프로토콜로 트레이스 데이터를 받을 준비가 됐다"고 선언하는 것입니다. 백엔드 앱은 이제 벤더 종속적인 에이전트 없이 OTLP 포맷으로 데이터만 쏘면 됩니다.
-> - **S3 백엔드의 중요성**: 트레이스 데이터는 용량이 매우 큽니다. 모든 요청의 헤더와 태그를 저장하기 때문입니다. Tempo는 이를 S3에 저장함으로써 "스토리지 비용 때문에 트레이싱을 끈다"는 딜레마를 해결해 줍니다. 백엔드 개발자는 마음 놓고 `Trace`를 활성화할 수 있습니다.
-> - **구조의 일관성**: Loki, Mimir와 동일하게 Ingester, Distributor 같은 분산 아키텍처를 가집니다. 하나를 이해하면 나머니 둘도 이해할 수 있는 일관된 구조는 학습 비용을 낮춰줍니다.
+>**OTLP(OpenTelemetry Protocol) 준비 완료**: `extraPorts` 설정으로 `4317` 포트를 명시적으로 열었습니다. 이는 Tempo가 "나는 표준 프로토콜로 트레이스 데이터를 받을 준비가 됐다"고 선언하는 것입니다. 백엔드 앱은 이제 벤더 종속적인 에이전트 없이 OTLP 포맷으로 데이터만 쏘면 됩니다.
+>**S3 백엔드의 중요성**: 트레이스 데이터는 용량이 매우 큽니다. 모든 요청의 헤더와 태그를 저장하기 때문입니다. Tempo는 이를 S3에 저장함으로써 "스토리지 비용 때문에 트레이싱을 끈다"는 딜레마를 해결해 줍니다. 백엔드 개발자는 마음 놓고 `Trace`를 활성화할 수 있습니다.
+>**구조의 일관성**: Loki, Mimir와 동일하게 Ingester, Distributor 같은 분산 아키텍처를 가집니다. 하나를 이해하면 나머니 둘도 이해할 수 있는 일관된 구조는 학습 비용을 낮춰줍니다.
 
 ---
 ### 2.7 데이터 수집 파이프라인: OpenTelemetry Collector
