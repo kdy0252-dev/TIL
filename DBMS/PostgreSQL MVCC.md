@@ -12,7 +12,7 @@ group:
   - "[[DBMS]]"
 ---
 # PostgreSQL MVCC
-## 0. 개요 (Executive Summary)
+## 개요 (Executive Summary)
 
 현대적인 데이터베이스 시스템에서 높은 동시성(High Concurrency)을 보장하는 것은 시스템 가용성의 핵심이다. PostgreSQL은 이를 달성하기 위해 **MVCC(Multi-Version Concurrency Control)** 기술을 채택하고 있다. MVCC는 읽기 작업과 쓰기 작업이 서로를 블로킹하지 않도록 설계되어 있어, 대규모 트래픽 환경에서도 안정적인 성능을 제공한다.
 
