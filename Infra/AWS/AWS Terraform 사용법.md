@@ -2,100 +2,122 @@
 id: AWS Terraform 사용법
 started: 2025-12-29
 tags:
-  - ⏳DOING
-group: []
+  - ✅DONE
+  - Infra
+  - AWS
+  - Terraform
+  - IaC
+  - VPN
+group:
+  - "[[Infra]]"
 ---
-# AWS Terraform 사용법
-## Terraform 사용법
-### 1. export-env.sh 스크립트 실행
-1. 값 세팅
- 2. TF_VAR_ec2_key_pair_key_name (한번 생성하고나서는 키 저장 후 기록해두었다가 쓰시면 됩니다.)
-  3. AWS 의 **EC2** 에 들어가기
-  4. 좌측 메뉴에서 **네트워크 및 보안** -> **키 페어**  들어가기
-  5. 키 페어 생성하러 들어가기
-  6. 생성된 키는 **~/.ssh** 폴더 안에 다운로드하기
-  7. **키 페어 이름** 입력하기 -> 이 값을 저 변수에 입력해줘야 함 (내꺼는 gsnam_key)
- 8. TF_VAR_iam_user_access_key_id (한번 생성하고나서는 기록해두었다가 쓰시면 됩니다.)
- 9. TF_VAR_iam_user_secret_access_key (한번 생성하고나서는 기록해두었다가 쓰시면 됩니다.)
-  10. AWS 의 **IAM** 에 들어가기
-  11. 좌측 메뉴에서 **액세스 관리** -> **사용자** 들어가기
-  12. **내꺼 계정** 들어가기
-  13. **보안 자격 증명** 들어가기
-  14. 액세스 키 없으면 만들기
-  15. TF_VAR_iam_user_access_key_id : **액세스 키**
-  16. TF_VAR_iam_user_secret_access_key : **비밀키**
- 17. TF_VAR_db_password (RDS 안하면 굳이 안해도 됩니다.)
-  18. **RDS 의 비밀번호** 입니다.
-19.  스크립트 실행 (sudo 로 비밀번호 필요)
-``` shell
-. ./export-env.sh
-```
+# AWS Terraform 기반 인프라 배포 및 운영 가이드 (Standard SOP)
 
-###  2. 첫번째 테라폼 명령어 실행 (*1번 수행 후 진행하시오!*)
-#### 처음 할 때는 테라폼 초기화 명령어가 필요할 수 있습니다.
-``` shell
-terraform init
-```
-#### 전역 모듈을 적용합니다.
-``` shell
-terraform apply -auto-approve -target=module.global
-```
+## 0. 개요 (Executive Summary)
 
+본 문서는 Terraform을 활용하여 AWS 인프라를 프로비저닝하고 운영하기 위한 표준 운영 절차(SOP)를 기술한다. AWS 리소스 생성뿐만 아니라, 보안 연결(Client VPN) 및 인증서(ACM) 연동 등 실제 운영 환경에서 필수적인 설정 단계를 포함하여 엔지니어가 일관된 방식으로 인프라를 관리할 수 있도록 돕는 것을 목적으로 한다.
 
-### 3. AWS 의 vpn 클라이언트 실행 (*2번이 완전히 끝난 다음 진행하시오!*)
-1. AWS 의 **VPC** 에 들어가기
-2. 좌측 메뉴에서 **가상 사설 네트워크(VPN)** -> **Client VPN 엔드포인트** 들어가기
-3. 클라이언트가 없다면? (있으면 이 단계 패스)
- 4. **Client downloads** 로 클라이언트 다운받기
-5. 생성된 클라이언트 VPN **선택**하고 **클라이언트 구성 다운로드** 하기
-6. AWS 의 **Certificate Manager** 에 들어가기
-7. 좌측 메뉴에서 **인증서 나열** 들어가기
-8. 생성된 도메인의 **인증서 ID** 클릭하여 들어가기
-9. **export** 하기
- 10. passpharse 에 복호화 시 사용할 값 입력 (나는 gsnam)
-  11. 키가 기본적으로 암호화 됩니다. 복호화 할 때 이 값이 사용됩니다.
- 12. **cert body** 와 **key** 를 다운로드 하기
- 13. 터미널에서 해당 파일들의 디렉터리로 이동
- 14. 키 파일의 확장자 변경하기 (txt -> **pem**) -> *주의!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*
- 15. 명령어 입력하여 키 복호화 하기
-``` shell
-openssl pkey -in {다운받은 파일명} -out {복호화하여 생성되는 파일명}
-```
-9. **클라이언트 구성** 파일 안에 인증서와 키 세팅하기
- 10. vi 로 클라이언트 구성파일 열기
- 11. 인증서 안에 데이터 복사 후 cert 태그 생성해서 안에 인증서 데이터 넣기 ( \<cert>{인증서 파일 데이터}\</cert> )
- 12. 복호화한 키 안에 데이터 복사 후 key 태그 생성해서 안에 키 데이터 넣기 ( \<key> {키 파일 데이터} \</key> )
- 13. 저장
-14. VPN 클라이언트 실행
-15. command + s 로 프로파일 관리 창 열기
-16. 클라이언트 구성 파일 선택해서 프로파일 등록하기
-17. vpn 연결하기
+---
 
-### 4. 두번째 테라폼 명령어 실행 (3번으로 vpn 연결해야 가능합니다!)
-``` shell
+## Ⅰ. 환경 준비 및 변수 설정 (Pre-requisites)
+
+Terraform 실행 전, AWS 인증 정보 및 리소스 식별을 위한 환경변수 설정이 선행되어야 한다.
+
+### 1. 보안 자격 증명 및 키 페어 구성
+- **EC2 Key Pair**: 
+  - 생성된 `.pem` 키는 반드시 `~/.ssh` 경로에 보관하며, 권한을 `400`으로 제한하여 보안성을 확보해야 한다.
+  - 변수명: `TF_VAR_ec2_key_pair_key_name`
+- **IAM Access Keys**: 
+  - 최소 권한 원칙(Least Privilege)에 따라 필요한 서비스 권한만 부여된 IAM 사용자의 키를 사용한다.
+  - 변수명: `TF_VAR_iam_user_access_key_id`, `TF_VAR_iam_user_secret_access_key`
+
+### 2. 환경변수 주입 스크립트 (`export-env.sh`)
+- Terraform은 `TF_VAR_` 접두사가 붙은 환경변수를 자동으로 변수로 인식한다.
+- **실행 방법**:
+  ```bash
+  source ./export-env.sh
+  ```
+  > [!IMPORTANT]
+  > 스크립트 실행 시 `.` 또는 `source` 명령어를 사용하여 현재 셸 세션에 변수를 상속시켜야 한다.
+
+---
+
+## Ⅱ. 초기 인프라 프로비저닝 (Stage 1)
+
+### 1. Terraform 초기화 및 글로벌 모듈 배포
+- **Backend 초기화**: 
+  ```bash
+  terraform init
+  ```
+- **Global 리소스 전역 적용**:
+  VPC, Subnet, IAM 등 공통 기반 시설을 먼저 배포한다. 특정 모듈만 우선 배포하기 위해 `-target` 옵션을 활용한다.
+  ```bash
+  terraform apply -auto-approve -target=module.global
+  ```
+
+---
+
+## Ⅲ. Client VPN 및 보안 연결 구성 (Stage 2)
+
+내부망 리소스(Private Subnet)에 접근하기 위해 AWS Client VPN 설정을 완료해야 한다.
+
+### 1. ACM 인증서 Export 및 복호화
+- AWS Certificate Manager(ACM)에서 배포된 인증서를 Export하여 로컬에서 사용할 수 있도록 준비한다.
+- **키 복호화 절차**:
+  1. 인증서 본문과 암호화된 키를 다운로드한다.
+  2. OpenSSL을 사용하여 키 파일을 복호화한다.
+  ```bash
+  # 키 파일 확장자를 .pem으로 변경 후 실행
+  openssl pkey -in encrypted_key.pem -out decrypted_key.pem
+  ```
+
+### 2. VPN 클라이언트 프로파일 구성 (`.ovpn`)
+- 다운로드한 `.ovpn` 파일 내부에 `<cert>`와 `<key>` 태그를 추가하여 인증 정보를 직접 삽입한다.
+- **포맷 예시**:
+  ```xml
+  <cert>
+  -----BEGIN CERTIFICATE-----
+  ... [인증서 데이터] ...
+  -----END CERTIFICATE-----
+  </cert>
+  <key>
+  -----BEGIN PRIVATE KEY-----
+  ... [복호화된 키 데이터] ...
+  -----END PRIVATE KEY-----
+  </key>
+  ```
+
+---
+
+## Ⅳ. 전체 인프라 완성 및 서비스 확인 (Stage 3)
+
+보안 연결(VPN)이 확보된 상태에서 실제 서비스 리소스(EKS, RDS 등)를 배포한다.
+
+### 1. 최종 배포 수행
+```bash
+# VPN 연결 상태를 반드시 확인 후 실행
 terraform apply -auto-approve
 ```
 
-### 5. 생성된 것들 확인하기
-1. AWS 리소스 확인
- 2. AWS 의 EC2 에 들어가기
- 3. 좌측 메뉴에서 로드 밸런싱 -> 로드밸런서 들어가기
- 4. 생성된 것들 확인 (현재는 argocd, grafana)
-5. 서비스 확인
- 6. 브라우져 열어서 접근해보기 (현재는 argocd, grafana)
-  7. eu 의 prod 라면?
-   8. argocd : http://argocd.eu-prod.autocrypt.io
-  9. imom 의 qa 라면?
-   10. grafana : http://grafana.imom-qa.autocrypt.io
+### 2. Internal DNS Resolution 설정 (`/etc/resolver/`)
+- AWS 내부 도메인(`.autocrypt.io` 등)을 로컬에서 해석하기 위해 Resolver 설정을 추가한다.
+- **경로**: `/etc/resolver/[도메인명]`
+- 이 설정이 누락될 경우 VPN 연결 상태에서도 내부 도메인 기반 서비스(ArgoCD, Grafana) 접근이 불가능할 수 있다.
 
+---
 
-### 6. 테라폼 명령어로 삭제하기
-1. 이 명령어 하나로 모든 리소스가 제거됩니다.
-``` shell
+## Ⅴ. 리소스 클린업 및 관리 (Maintenance)
+
+### 1. 리소스 전체 삭제
+운영 환경이 아닌 개발/테스트 환경의 경우, 비용 절감을 위해 사용하지 않는 리소스는 전량 삭제한다.
+```bash
 terraform destroy -auto-approve
 ```
 
-### 7. 도메인 지정 정보 제거하기
-1. /etc/resolver/ 안에 정보 제거하기
+### 2. State 관리 주의사항
+- `terraform.tfstate` 파일은 리소스의 현재 상태를 기록하는 유일한 지표이므로, 반드시 원격 백엔드(S3 등)를 사용하여 관리하고 로컬 파일의 유실/오염에 주의한다.
 
 # Reference
+- **Official Docs**: [Terraform AWS Provider Documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
+- **Best Practice**: [AWS Client VPN Authentication and Authorization](https://docs.aws.amazon.com/vpn/latest/clientvpn-admin/client-authentication.html)
+- **Technical Standard**: [Terraform State Management Guide](https://developer.hashicorp.com/terraform/language/state)
