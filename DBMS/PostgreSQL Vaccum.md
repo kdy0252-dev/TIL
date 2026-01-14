@@ -17,8 +17,6 @@ group:
 
 PostgreSQL 운영의 성패는 **VACUUM**을 얼마나 정밀하게 제어하느냐에 달려 있다. PostgreSQL은 MVCC(Multi-Version Concurrency Control)를 구현하기 위해 데이터의 물리적 업데이트 대신 '새로운 버전의 삽입' 방식을 선택했다. 이로 인해 필연적으로 발생하는 구버전 데이터(Dead Tuple)는 단순히 공간을 차지하는 것을 넘어, 인덱스 성능 저하, I/O 폭증, 그리고 최악의 경우 **Transaction ID Wraparound**로 인한 서비스 중단까지 초래할 수 있다.
 
-본 문서는 우아한형제들 기술 블로그의 실무 인사이트를 바탕으로, VACUUM의 아키텍처적 이해부터 대규모 서비스 환경에서의 **전문적인 튜닝 전략 및 운영 SOP**를 300라인 이상의 상세 분량으로 기술한다.
-
 ---
 ## PostgreSQL MVCC와 물리적 저장 구조
 
