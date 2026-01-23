@@ -129,7 +129,28 @@ group:
 
 ---
 
-## 6. CNCF 프로젝트 성숙도 모델
+## 6. Cloud Native의 근간: The Twelve-Factor App
+
+CNCF Landscape에 나열된 기술들을 제대로 활용하기 위해서는 애플리케이션 자체가 클라우드 네이티브에 적합한 구조를 갖추어야 한다. 이를 위한 방법론이 바로 **The Twelve-Factor App**이다.
+
+### 12-Factors와 CNCF 기술의 연계
+
+1.  **Codebase**: 하나의 코드베이스, 여러 번의 배포 (Git, GitHub, GitLab)
+2.  **Dependencies**: 명시적으로 선언되고 격리된 의존성 (Docker, Container Runtime)
+3.  **Config**: 환경마다 다른 설정은 환경 변수에 저장 (K8s ConfigMap/Secret, Vault)
+4.  **Backing services**: 보조 서비스(DB, MQ)를 연결된 리소스로 취급 (CSI, Vitess, Strimzi)
+5.  **Build, release, run**: 철저하게 분리된 빌드와 실행 단계 (ArgoCD, Tekton)
+6.  **Processes**: 애플리케이션을 하나 이상의 Stateless 프로세스로 실행 (K8s Deployment)
+7.  **Port binding**: 포트 바인딩을 통해 서비스를 공개 (K8s Service, Ingress)
+8.  **Concurrency**: 프로세스 모델을 통한 확장성 확보 (K8s Horizontal Pod Autoscaler)
+9.  **Disposability**: 빠른 시작과 안전한 종료로 견고함 극대화 (K8s LifeCycle Hooks)
+10. **Dev/prod parity**: 개발, 스테이징, 운영 환경을 최대한 유사하게 유지 (Containerization, IaC)
+11. **Logs**: 로그를 이벤트 스트림으로 취급 (Fluentd, Loki)
+12. **Admin processes**: 관리자 태스크를 일회성 프로세스로 실행 (K8s Job/CronJob)
+
+---
+
+## 7. CNCF 프로젝트 성숙도 모델
 
 CNCF는 프로젝트의 안정성과 커뮤니티 활성도에 따라 3단계로 관리한다.
 
@@ -139,7 +160,7 @@ CNCF는 프로젝트의 안정성과 커뮤니티 활성도에 따라 3단계로
 
 ---
 
-## 7. 클라우드 네이티브를 향한 전략적 조언
+## 8. 클라우드 네이티브를 향한 전략적 조언
 
 CNCF Landscape은 단순히 도구 목록이 아니라, **"어떻게 하면 인프라 종속성을 탈피하고 민첩성을 확보할 것인가"**에 대한 해답이다.
 
