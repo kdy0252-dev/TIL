@@ -25,23 +25,26 @@ public class PassengerQueryService {
 
     private final TransactionTemplate readOnlyTransaction;
     private final PassengerRepository passengerRepository;
+    private final PassengerExceptionMapper exceptionMapper;
 
     public PassengerQueryService(
             PlatformTransactionManager transactionManager,
-            PassengerRepository passengerRepository
+            PassengerRepository passengerRepository,
+            PassengerExceptionMapper exceptionMapper
     ) {
         this.readOnlyTransaction = new TransactionTemplate(transactionManager);
         this.readOnlyTransaction.setReadOnly(true);
         this.readOnlyTransaction.setTimeout(3);
         this.passengerRepository = passengerRepository;
+        this.exceptionMapper = exceptionMapper;
     }
 
-    public Either<PassengerError, Passenger> findById(long passengerId) {
-        return readOnlyTransaction.execute(status ->
+    public Passenger findById(long passengerId) {
+        return readOnlyTransaction.<Either<PassengerError, Passenger>>execute(status ->
             passengerRepository.findById(passengerId)
                                .map(Either::<PassengerError, Passenger>right)
                                .orElseGet(() -> Either.left(new PassengerError.NotFound(passengerId)))
-        );
+        ).getOrElseThrow(exceptionMapper::toException);
     }
 }
 ```

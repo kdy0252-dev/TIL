@@ -104,24 +104,34 @@ Top-level Service는 단계만 나열하고 외부 예외 변환과 세부 검�
 @RequiredArgsConstructor
 public class StartBookingSagaService implements StartBookingSagaUseCase {
 
+    private final BookingSagaExecutor sagaExecutor;
+    private final BookingSagaFailureHandler failureHandler;
+
+    @Override
+    public BookingSagaResource start(StartBookingSagaCommand command) {
+        BookingSaga completed = sagaExecutor.execute(command)
+            .getOrElseThrow(error -> failureHandler.compensateAndMap(command.sagaId(), error));
+        return BookingSagaResource.from(completed);
+    }
+}
+```
+
+실행 세부 단계는 같은 Slice의 `internal` Component로 내린다. 이 Component는 Controller 경계가 아니므로 Port와 Domain의 `Either`를 합성한다.
+
+```java
+@Component
+@RequiredArgsConstructor
+public class BookingSagaExecutor {
+
     private final BookingSagaPort sagaPort;
     private final PaymentCommandPort paymentPort;
     private final DispatchCommandPort dispatchPort;
-    private final SagaRecoveryAlarm recoveryAlarm;
-    private final BookingSagaCompensationService compensationService;
 
-    @Override
-    public Either<SagaError, BookingSagaResource> start(StartBookingSagaCommand command) {
-        Either<SagaError, BookingSaga> execution = sagaPort.create(command)
+    public Either<SagaError, BookingSaga> execute(StartBookingSagaCommand command) {
+        return sagaPort.create(command)
             .flatMap(saga -> approvePayment(saga, command))
             .flatMap(saga -> confirmDispatch(saga, command))
             .flatMap(saga -> sagaPort.save(saga.advance(BookingSagaStage.COMPLETED)));
-
-        return execution.fold(
-            error -> compensationService.compensate(command.sagaId(), error)
-                                        .flatMap(ignored -> Either.left(error)),
-            saga -> Either.right(BookingSagaResource.from(saga))
-        );
     }
 
     private Either<SagaError, BookingSaga> approvePayment(
@@ -134,8 +144,8 @@ public class StartBookingSagaService implements StartBookingSagaUseCase {
             command.amount()
         );
         return paymentPort.approve(paymentCommand)
-                          .map(approval -> saga.withPaymentApproval(approval.id()))
-                          .flatMap(sagaPort::save);
+            .map(approval -> saga.withPaymentApproval(approval.id()))
+            .flatMap(sagaPort::save);
     }
 
     private Either<SagaError, BookingSaga> confirmDispatch(
@@ -148,8 +158,25 @@ public class StartBookingSagaService implements StartBookingSagaUseCase {
             command.serviceDate()
         );
         return dispatchPort.confirm(dispatchCommand)
-                           .map(confirmation -> saga.withDispatch(confirmation.id()))
-                           .flatMap(sagaPort::save);
+            .map(confirmation -> saga.withDispatch(confirmation.id()))
+            .flatMap(sagaPort::save);
+    }
+}
+```
+
+보상 후 원래 실패를 Application Exception으로 바꾸는 책임도 내부 Handler로 분리한다.
+
+```java
+@Component
+@RequiredArgsConstructor
+public class BookingSagaFailureHandler {
+
+    private final BookingSagaCompensationService compensationService;
+    private final SagaExceptionMapper exceptionMapper;
+
+    public RuntimeException compensateAndMap(UUID sagaId, SagaError error) {
+        compensationService.compensate(sagaId, error);
+        return exceptionMapper.toException(error);
     }
 }
 ```
@@ -166,14 +193,17 @@ public class BookingSagaCompensationService {
     private final BookingSagaPort sagaPort;
     private final PaymentCommandPort paymentPort;
     private final DispatchCommandPort dispatchPort;
+    private final SagaRecoveryAlarm recoveryAlarm;
+    private final SagaExceptionMapper exceptionMapper;
 
-    public Either<SagaError, BookingSaga> compensate(UUID sagaId, SagaError cause) {
+    public BookingSaga compensate(UUID sagaId, SagaError cause) {
         return sagaPort.findById(sagaId)
                        .flatMap(saga -> sagaPort.save(saga.advance(BookingSagaStage.COMPENSATING)))
                        .flatMap(this::cancelDispatchWhenRequired)
                        .flatMap(this::cancelPaymentWhenRequired)
                        .flatMap(saga -> sagaPort.save(saga.advance(BookingSagaStage.COMPENSATED)))
-                       .peekLeft(error -> recoveryAlarm.raise(sagaId, cause, error));
+                       .peekLeft(error -> recoveryAlarm.raise(sagaId, cause, error))
+                       .getOrElseThrow(exceptionMapper::toException);
     }
 
     private Either<SagaError, BookingSaga> cancelDispatchWhenRequired(BookingSaga saga) {

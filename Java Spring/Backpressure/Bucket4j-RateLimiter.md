@@ -101,6 +101,26 @@ public class Bucket4jRateLimitAdapter implements RateLimitPort {
 
 여러 제한을 따로 `tryConsume()`하면 첫 Bucket만 소비된 뒤 두 번째에서 실패할 수 있다. 사용자 제한과 Global 제한을 원자적으로 묶어야 한다면 Redis Script나 Gateway의 계층형 Rate Limit 기능을 사용한다.
 
+## Application Service
+
+Web Adapter가 Out Port의 `Either`를 직접 해석하지 않도록 최상위 Service에서 Application Exception으로 바꾼다.
+
+```java
+@Service
+@RequiredArgsConstructor
+public class ConsumeRateLimitService implements ConsumeRateLimitUseCase {
+
+    private final RateLimitPort rateLimitPort;
+    private final RateLimitExceptionMapper exceptionMapper;
+
+    @Override
+    public RateLimitDecision consume(RateLimitKey key) {
+        return rateLimitPort.consume(key)
+            .getOrElseThrow(exceptionMapper::toException);
+    }
+}
+```
+
 ## Web Adapter
 
 ```java
@@ -108,7 +128,7 @@ public class Bucket4jRateLimitAdapter implements RateLimitPort {
 @RequiredArgsConstructor
 public class RateLimitInterceptor implements HandlerInterceptor {
 
-    private final RateLimitPort rateLimitPort;
+    private final ConsumeRateLimitUseCase consumeRateLimitUseCase;
 
     @Override
     public boolean preHandle(
@@ -132,11 +152,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         AuthenticatedUser user = AuthenticatedUser.from(request);
         RateLimitKey key = new RateLimitKey(user.tenantId(), user.userId(), operation);
 
-        return rateLimitPort.consume(key)
-            .fold(
-                error -> failClosed(response, error),
-                decision -> writeDecision(response, decision)
-            );
+        RateLimitDecision decision = consumeRateLimitUseCase.consume(key);
+        return writeDecision(response, decision);
     }
 
     private boolean writeDecision(HttpServletResponse response, RateLimitDecision decision) {

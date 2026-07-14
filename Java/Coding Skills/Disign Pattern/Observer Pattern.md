@@ -81,16 +81,18 @@ public class CancelBookingService implements CancelBookingUseCase {
 
     private final BookingPort bookingPort;
     private final BookingEventOutboxPort outboxPort;
+    private final BookingExceptionMapper exceptionMapper;
 
     @Override
     @Transactional
-    public Either<BookingError, BookingResource> cancel(CancelBookingCommand command) {
+    public BookingResource cancel(CancelBookingCommand command) {
         return bookingPort.findById(command.bookingId())
                           .flatMap(booking -> booking.cancel(command.reason(), command.actor(), command.clock()))
                           .flatMap(change -> bookingPort.save(change.booking())
                                                     .flatMap(saved -> outboxPort.appendAll(change.events())
                                                                                  .map(ignored -> saved)))
-                          .map(BookingResource::from);
+                          .map(BookingResource::from)
+                          .getOrElseThrow(exceptionMapper::toException);
     }
 }
 ```
@@ -110,13 +112,14 @@ public class BookingCancelledNotificationConsumer {
     private final ProcessedEventPort processedEventPort;
 
     @Transactional
-    public Either<NotificationError, Void> consume(BookingCancelled event) {
-        return processedEventPort.exists(event.eventId())
+    public void consume(BookingCancelled event) {
+        processedEventPort.exists(event.eventId())
                                  .filter(processed -> !processed)
                                  .<Either<NotificationError, Boolean>>map(Either::right)
                                  .orElseGet(() -> Either.left(new NotificationError.AlreadyProcessed(event.eventId())))
                                  .flatMap(ignored -> notificationPort.sendCancellation(event))
-                                 .flatMap(ignored -> processedEventPort.markProcessed(event.eventId()));
+                                 .flatMap(ignored -> processedEventPort.markProcessed(event.eventId()))
+                                 .getOrElseThrow(NotificationConsumeException::new);
     }
 }
 ```

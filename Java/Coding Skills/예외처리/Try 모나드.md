@@ -17,7 +17,7 @@ group:
 | 타입 | 실패 표현 | 주 사용 위치 |
 |---|---|---|
 | `Try<T>` | `Throwable` | 외부 Library가 예외를 던지는 Adapter 경계 |
-| `Either<E, T>` | 업무 의미가 있는 `E` | Port와 Use Case의 명시적 계약 |
+| `Either<E, T>` | 업무 의미가 있는 `E` | Domain Model과 Out Port의 명시적 계약 |
 | `Validation<E, T>` | 여러 검증 Error 누적 | Command·Domain 생성 검증 |
 | `Optional<T>` | 값 없음 | 실패 이유가 필요 없는 조회 |
 
@@ -128,7 +128,7 @@ public PricingPolicy loadPolicy(String centerCode) {
 
 Fallback Data의 신선도와 허용 가능한 업무 범위를 먼저 정의해야 한다. 결제 금액처럼 오래된 값이 더 위험한 업무에서는 실패가 올바른 선택일 수 있다.
 
-## 비동기 작업과 결합하기
+## 비동기 Out Adapter와 결합하기
 
 `Try`는 동기 실행 결과다. 비동기 완료를 표현하려면 `CompletionStage<T>` 또는 Reactive Type의 Error Channel을 사용하고, 완료 지점에서 Error를 업무 타입으로 변환한다. `Try.of(() -> future)`는 Future 생성 중 예외만 잡고 비동기 실패는 잡지 못한다.
 
@@ -143,6 +143,8 @@ public CompletionStage<Either<NotificationError, DeliveryReceipt>> send(
                              ));
 }
 ```
+
+이 반환형은 비동기 Out Port/Adapter 계약이다. Controller-facing Service는 완료 결과의 `Either`를 Application Exception으로 변환한 `CompletionStage<DeliveryReceipt>`를 반환한다.
 
 ## Side Effect를 배치하는 위치
 

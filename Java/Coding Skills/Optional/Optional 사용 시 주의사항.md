@@ -33,14 +33,15 @@ public interface PassengerQueryPort {
 }
 ```
 
-`findByPhoneNumber`의 부재는 정상적인 조회 결과일 수 있다. 반면 반드시 존재해야 하는 Use Case에서는 Service가 업무 Error로 바꾼다.
+`findByPhoneNumber`의 부재는 정상적인 조회 결과일 수 있다. 반면 반드시 존재해야 하는 Use Case에서는 최상위 Service가 Application Exception으로 바꾼다.
 
 ```java
-public Either<PassengerError, PassengerResource> getPassenger(long passengerId) {
+public PassengerResource getPassenger(long passengerId) {
     return passengerPort.findById(passengerId)
                         .<Either<PassengerError, Passenger>>map(Either::right)
                         .orElseGet(() -> Either.left(new PassengerError.NotFound(passengerId)))
-                        .map(PassengerResource::from);
+                        .map(PassengerResource::from)
+                        .getOrElseThrow(passengerExceptionMapper::toException);
 }
 ```
 

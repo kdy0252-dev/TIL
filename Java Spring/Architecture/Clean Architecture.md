@@ -101,7 +101,7 @@ public record CancelBookingCommand(
 }
 
 public interface CancelBookingUseCase {
-    Either<BookingError, BookingResource> cancel(CancelBookingCommand command);
+    BookingResource cancel(CancelBookingCommand command);
 }
 ```
 
@@ -135,10 +135,11 @@ public class CancelBookingService implements CancelBookingUseCase {
     private final SaveBookingPort saveBookingPort;
     private final BookingEventOutboxPort outboxPort;
     private final Clock clock;
+    private final BookingExceptionMapper exceptionMapper;
 
     @Override
     @Transactional
-    public Either<BookingError, BookingResource> cancel(CancelBookingCommand command) {
+    public BookingResource cancel(CancelBookingCommand command) {
         return loadBookingPort.findById(command.bookingId())
                               .flatMap(booking -> booking.cancel(
                                   command.reason(),
@@ -148,7 +149,8 @@ public class CancelBookingService implements CancelBookingUseCase {
                               .flatMap(saveBookingPort::save)
                               .flatMap(saved -> outboxPort.append(BookingCancelled.from(saved))
                                                           .map(ignored -> saved))
-                              .map(BookingResource::from);
+                              .map(BookingResource::from)
+                              .getOrElseThrow(exceptionMapper::toException);
     }
 }
 ```
@@ -180,8 +182,6 @@ public record CancelBookingRequest(
 public class BookingController {
 
     private final CancelBookingUseCase cancelBookingUseCase;
-    private final BookingErrorResponseMapper errorMapper;
-
     @Operation(summary = "예약 취소")
     @PostMapping("/{bookingId}/cancellation")
     public ResponseEntity<BookingResponse> cancel(
@@ -189,11 +189,28 @@ public class BookingController {
         @Valid @RequestBody CancelBookingRequest request,
         @AuthenticationPrincipal AccountPrincipal principal
     ) {
-        return cancelBookingUseCase.cancel(request.toCommand(bookingId, principal.toAuditActor()))
-                                   .fold(
-                                       errorMapper::toResponse,
-                                       resource -> ResponseEntity.ok(BookingResponse.from(resource))
-                                   );
+        BookingResource resource = cancelBookingUseCase.cancel(
+            request.toCommand(bookingId, principal.toAuditActor())
+        );
+        return ResponseEntity.ok(BookingResponse.from(resource));
+    }
+}
+```
+
+Controller는 Domain Error를 알지 않는다. `BookingExceptionMapper`가 Service 경계에서 Application Exception으로 바꾸고 `@RestControllerAdvice`가 일관된 `ProblemDetail` 응답을 만든다.
+
+```java
+@RestControllerAdvice
+public class BookingControllerAdvice {
+
+    @ExceptionHandler(BookingNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleNotFound(BookingNotFoundException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+            HttpStatus.NOT_FOUND,
+            exception.getMessage()
+        );
+        problem.setProperty("code", "BOOKING_NOT_FOUND");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
     }
 }
 ```

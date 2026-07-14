@@ -52,14 +52,16 @@ public class BookingQueryService {
 
     private final BookingQueryPort bookingQueryPort;
     private final BookingCache bookingCache;
+    private final BookingExceptionMapper exceptionMapper;
 
-    public Either<BookingError, BookingResource> get(String tenantId, long bookingId) {
+    public BookingResource get(String tenantId, long bookingId) {
         BookingCacheKey key = new BookingCacheKey(tenantId, bookingId, CACHE_SCHEMA_VERSION);
 
         return bookingCache.get(key)
                            .<Either<BookingError, BookingResource>>map(Either::right)
                            .orElseGet(() -> bookingQueryPort.findResource(tenantId, bookingId)
-                               .peek(resource -> bookingCache.put(key, resource)));
+                               .peek(resource -> bookingCache.put(key, resource)))
+                           .getOrElseThrow(exceptionMapper::toException);
     }
 }
 ```
@@ -100,13 +102,14 @@ Database Commit 전에 Cache를 지우면 Transaction Rollback 후 Cache만 사�
 
 ```java
 @Transactional
-public Either<CenterPolicyError, CenterPolicyResource> update(UpdateCenterPolicyCommand command) {
+public CenterPolicyResource update(UpdateCenterPolicyCommand command) {
     return centerPolicyPort.find(command.centerId())
                            .flatMap(policy -> policy.update(command.settings(), command.actor()))
                            .flatMap(centerPolicyPort::save)
                            .flatMap(saved -> outboxPort.append(CenterPolicyChanged.from(saved))
                                                        .map(ignored -> saved))
-                           .map(CenterPolicyResource::from);
+                           .map(CenterPolicyResource::from)
+                           .getOrElseThrow(centerPolicyExceptionMapper::toException);
 }
 ```
 

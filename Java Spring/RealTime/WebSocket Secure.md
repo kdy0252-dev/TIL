@@ -121,8 +121,9 @@ public class VehicleSubscriptionService {
 
     private final SessionRegistry sessionRegistry;
     private final VehicleAccessPolicy vehicleAccessPolicy;
+    private final WebSocketExceptionMapper exceptionMapper;
 
-    public Either<WebSocketError, ServerWebSocketMessage> subscribe(
+    public ServerWebSocketMessage subscribe(
         String sessionId,
         SubscribeVehicle command
     ) {
@@ -140,7 +141,8 @@ public class VehicleSubscriptionService {
             .map(updated -> new ServerWebSocketMessage.SubscriptionAccepted(
                 command.vehicleId(),
                 updated.lastSequence()
-            ));
+            ))
+            .getOrElseThrow(exceptionMapper::toException);
     }
 }
 ```

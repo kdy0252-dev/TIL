@@ -85,9 +85,10 @@ public class CreateDispatchPlanService implements CreateDispatchPlanUseCase {
 
     private final DriverCandidatePort candidatePort;
     private final DispatchScoringStrategyRegistry strategyRegistry;
+    private final DispatchExceptionMapper exceptionMapper;
 
     @Override
-    public Either<DispatchError, DispatchPlanResource> create(CreateDispatchPlanCommand command) {
+    public DispatchPlanResource create(CreateDispatchPlanCommand command) {
         return strategyRegistry.find(command.mode())
                                .flatMap(strategy -> candidatePort.findAvailable(command.area())
                                    .map(candidates -> candidates.stream()
@@ -97,7 +98,8 @@ public class CreateDispatchPlanService implements CreateDispatchPlanUseCase {
                                .flatMap(optionalCandidate -> optionalCandidate
                                    .<Either<DispatchError, ScoredCandidate>>map(Either::right)
                                    .orElseGet(() -> Either.left(new DispatchError.NoCandidate(command.area()))))
-                               .map(DispatchPlanResource::from);
+                               .map(DispatchPlanResource::from)
+                               .getOrElseThrow(exceptionMapper::toException);
     }
 }
 ```

@@ -10,14 +10,14 @@ group:
 
 # Either 모나드
 
-`Either<L, R>`는 실패와 성공을 하나의 반환 타입으로 표현한다. 관례상 `Left`는 실패, `Right`는 성공이다. `Optional<T>`가 값의 부재만 알려 준다면 `Either<Error, T>`는 왜 실패했는지까지 타입으로 전달한다.
+`Either<L, R>`는 실패와 성공을 하나의 반환 타입으로 표현한다. 관례상 `Left`는 실패, `Right`는 성공이다. `Optional<T>`가 값의 부재만 알려 준다면 `Either<Error, T>`는 왜 실패했는지까지 타입으로 전달한다. FMS 구조에서는 이 타입을 모든 계층에 그대로 노출하지 않고 Domain Model과 Out Port의 실패 계약으로 제한한다.
 
 ## 언제 사용하는가
 
 - 입력 검증처럼 호출자가 실패 이유에 따라 행동해야 할 때
 - Out Port가 외부 시스템·Database 실패를 반환할 때
 - 여러 실패 가능한 단계를 `flatMap`으로 합성할 때
-- 예외를 숨기지 않고 Use Case 계약에 드러낼 때
+- 예외를 숨기지 않고 Domain·Out Port 계약에 드러낼 때
 
 Programmer Error, 불변식 위반과 복구 불가능한 환경 오류까지 무조건 `Either`로 바꾸는 것은 아니다. 호출자가 처리할 수 있는 예상된 실패를 값으로 만들 때 가장 유용하다.
 
@@ -144,7 +144,7 @@ public final class Booking {
 
 ### Application Service
 
-Service는 단계만 읽히도록 `flatMap`으로 연결한다. 각 단계의 세부 규칙은 Domain과 Adapter에 둔다.
+Controller가 호출하는 최상위 Service는 `Either`를 반환하지 않는다. Domain과 Out Port의 `Either`를 합성한 뒤 구체적인 Application Exception으로 변환한다. 각 단계의 세부 규칙은 Domain과 Adapter에 둔다.
 
 ```java
 @Service
@@ -153,18 +153,20 @@ public class CancelBookingService implements CancelBookingUseCase {
 
     private final BookingPort bookingPort;
     private final AuditActorResolver auditActorResolver;
+    private final BookingExceptionMapper exceptionMapper;
 
     @Override
-    public Either<BookingError, BookingResource> cancel(CancelBookingCommand command) {
+    public BookingResource cancel(CancelBookingCommand command) {
         return bookingPort.findById(command.bookingId())
                           .flatMap(booking -> booking.cancel(auditActorResolver.currentActor()))
                           .flatMap(bookingPort::save)
-                          .map(BookingResource::from);
+                          .map(BookingResource::from)
+                          .getOrElseThrow(exceptionMapper::toException);
     }
 }
 ```
 
-중간에 `Left`가 생기면 이후 `flatMap`과 `map`은 실행되지 않고 같은 실패가 끝까지 전달된다. 이것이 Short-circuit다.
+중간에 `Left`가 생기면 이후 `flatMap`과 `map`은 실행되지 않는다. Service의 마지막 경계에서 `BookingNotFoundException`, `BookingAlreadyCancelledException`처럼 Controller Advice가 처리할 예외로 바뀐다.
 
 ## 여러 결과 합치기
 
@@ -185,7 +187,7 @@ public Either<BookingError, List<Booking>> loadAll(List<Long> bookingIds) {
 
 ## 경계에서 HTTP 응답으로 변환하기
 
-Domain Error를 Controller 곳곳에서 `instanceof`로 분기하지 않는다. 전용 Mapper 또는 전역 Exception Handler가 HTTP 의미로 변환한다.
+Domain Error를 Controller에서 `fold()`하거나 `instanceof`로 분기하지 않는다. Service가 Application Exception을 던지고 전역 Exception Handler가 HTTP 의미로 변환한다.
 
 ```java
 @RestController
@@ -193,15 +195,28 @@ Domain Error를 Controller 곳곳에서 `instanceof`로 분기하지 않는다. 
 public class BookingController {
 
     private final CancelBookingUseCase cancelBookingUseCase;
-    private final BookingErrorMapper errorMapper;
-
     @PostMapping("/bookings/{bookingId}/cancellation")
     public ResponseEntity<BookingResponse> cancel(@PathVariable long bookingId) {
-        return cancelBookingUseCase.cancel(new CancelBookingCommand(bookingId))
-                                   .fold(
-                                       errorMapper::toResponse,
-                                       resource -> ResponseEntity.ok(BookingResponse.from(resource))
-                                   );
+        BookingResource resource = cancelBookingUseCase.cancel(
+            new CancelBookingCommand(bookingId)
+        );
+        return ResponseEntity.ok(BookingResponse.from(resource));
+    }
+}
+```
+
+```java
+@RestControllerAdvice
+public class BookingExceptionHandler {
+
+    @ExceptionHandler(BookingNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleNotFound(BookingNotFoundException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+            HttpStatus.NOT_FOUND,
+            exception.getMessage()
+        );
+        problem.setProperty("code", "BOOKING_NOT_FOUND");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
     }
 }
 ```
@@ -211,13 +226,14 @@ public class BookingController {
 - `Either<String, T>`로 Error 구조를 잃는다.
 - `get()`으로 강제로 꺼내 `Either`의 안전성을 없앤다.
 - 모든 Method를 `Either<Exception, T>`로 만들어 업무 실패 종류를 감춘다.
-- Service 안에서 `isLeft()`와 `if`를 반복해 다시 명령형 흐름을 만든다.
+- 최상위 Service나 In Port가 `Either`를 반환해 Controller까지 Domain Error를 노출한다.
+- Controller가 `fold()`로 Error를 HTTP 응답으로 직접 Mapping한다.
 - `peek`에서 State를 변경해 Pipeline의 결과를 예측하기 어렵게 만든다.
 - Domain, Port와 Controller가 같은 Error 타입을 공유해 계층 경계를 흐린다.
 
 ## 기억할 점
 
-`Either`의 목적은 `try-catch` 문법을 없애는 것이 아니라 실패를 함수 합성이 가능한 명시적 계약으로 만드는 것이다. Error 타입을 먼저 설계하고, 외부 예외는 Adapter에서 변환하며, Service는 `flatMap`으로 업무 흐름만 보여 주는 것이 핵심이다.
+`Either`의 목적은 `try-catch` 문법을 없애는 것이 아니라 Domain과 Out Port 실패를 함수 합성이 가능한 계약으로 만드는 것이다. 최상위 Service는 그 계약을 소비해 Application Exception으로 바꾸고, Controller Advice가 HTTP 응답을 책임진다.
 
 # Reference
 

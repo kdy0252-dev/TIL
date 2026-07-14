@@ -34,8 +34,8 @@ public record CancelBookingCommand(
 
 ```java
 @FunctionalInterface
-public interface CommandHandler<C, E, R> {
-    Either<E, R> handle(C command);
+public interface CommandHandler<C, R> {
+    R handle(C command);
 }
 ```
 
@@ -43,18 +43,20 @@ public interface CommandHandler<C, E, R> {
 @Service
 @RequiredArgsConstructor
 public class CancelBookingCommandHandler
-    implements CommandHandler<CancelBookingCommand, BookingError, BookingResource> {
+    implements CommandHandler<CancelBookingCommand, BookingResource> {
 
     private final BookingPort bookingPort;
     private final IdempotencyPort idempotencyPort;
     private final BookingEventOutboxPort outboxPort;
+    private final BookingExceptionMapper exceptionMapper;
 
     @Override
     @Transactional
-    public Either<BookingError, BookingResource> handle(CancelBookingCommand command) {
+    public BookingResource handle(CancelBookingCommand command) {
         return idempotencyPort.findResult(command.idempotencyKey())
                               .map(Either::<BookingError, BookingResource>right)
-                              .orElseGet(() -> execute(command));
+                              .orElseGet(() -> execute(command))
+                              .getOrElseThrow(exceptionMapper::toException);
     }
 
     private Either<BookingError, BookingResource> execute(CancelBookingCommand command) {
@@ -70,7 +72,7 @@ public class CancelBookingCommandHandler
 }
 ```
 
-Command Handler는 `booking.cancel`이라는 Domain 규칙, 저장과 Outbox를 순서대로 조율한다. 실패가 반환 타입에 있으므로 호출자가 Retry와 HTTP Mapping을 결정할 수 있다.
+Command Handler는 `booking.cancel`이라는 Domain 규칙, 저장과 Outbox를 순서대로 조율한다. 내부 Pipeline의 실패는 Handler 경계에서 Application Exception으로 바꾸고 HTTP Mapping은 Controller Advice가 결정한다.
 
 ## Queue에 저장하는 Command
 
@@ -114,9 +116,9 @@ Consumer는 `commandId`로 중복 실행을 막고, 모르는 Schema Version은 
 @Component
 public class CommandBus {
 
-    private final Map<Class<?>, CommandHandler<?, ?, ?>> handlers;
+    private final Map<Class<?>, CommandHandler<?, ?>> handlers;
 
-    public CommandBus(List<CommandHandler<?, ?, ?>> handlers, CommandTypeResolver typeResolver) {
+    public CommandBus(List<CommandHandler<?, ?>> handlers, CommandTypeResolver typeResolver) {
         this.handlers = handlers.stream()
                                 .collect(Collectors.toUnmodifiableMap(
                                     typeResolver::commandTypeOf,
@@ -127,11 +129,10 @@ public class CommandBus {
                                 ));
     }
 
-    public <C, E, R> Either<CommandBusError, R> dispatch(C command) {
+    public <C, R> R dispatch(C command) {
         return Optional.ofNullable(handlers.get(command.getClass()))
-                       .map(handler -> cast(handler).handle(command))
-                       .map(result -> result.mapLeft(CommandBusError::handlingFailed))
-                       .orElseGet(() -> Either.left(CommandBusError.handlerNotFound(command.getClass())));
+                       .map(handler -> this.<C, R>cast(handler).handle(command))
+                       .orElseThrow(() -> new CommandHandlerNotFoundException(command.getClass()));
     }
 }
 ```

@@ -33,10 +33,7 @@ public class VehicleStatusReconciliationScheduler {
     public void reconcile() {
         ReconciliationWindow window = ReconciliationWindow.endingAt(clock.instant());
 
-        useCase.reconcile(window)
-            .peekLeft(error -> {
-                throw new VehicleReconciliationException(error);
-            });
+        useCase.reconcile(window);
     }
 }
 ```
@@ -61,9 +58,10 @@ public class VehicleStatusReconciliationService
 
     private final ReconciliationLeasePort leasePort;
     private final VehicleStatusReconciler reconciler;
+    private final ReconciliationExceptionMapper exceptionMapper;
 
     @Override
-    public Either<ReconciliationError, ReconciliationSummary> reconcile(
+    public ReconciliationSummary reconcile(
         ReconciliationWindow window
     ) {
         return leasePort.acquire("vehicle-status-reconciliation", Duration.ofMinutes(5))
@@ -72,7 +70,8 @@ public class VehicleStatusReconciliationService
                 .of(ignored -> reconciler.reconcile(window))
                 .toEither()
                 .mapLeft(cause -> new ReconciliationError.ExecutionFailure(window, cause)))
-            .flatMap(Function.identity());
+            .flatMap(Function.identity())
+            .getOrElseThrow(exceptionMapper::toException);
     }
 }
 ```

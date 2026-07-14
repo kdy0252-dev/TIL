@@ -71,16 +71,29 @@ public class FareCalculationService {
 
 ## Error와 결과 관찰
 
+아래 Method는 외부 결제 Provider를 감싸는 Out Adapter의 구현이다. Adapter는 `Either`를 반환하고 이를 호출하는 최상위 Service가 Application Exception으로 변환한다.
+
 ```java
-public Either<PaymentError, PaymentApproval> approve(PaymentRequest request) {
-    return Observation.createNotStarted("payment.approve", observationRegistry)
-                      .lowCardinalityKeyValue("provider", providerName)
-                      .observe(() -> Try.of(() -> paymentClient.approve(mapper.toProviderRequest(request)))
-                                        .map(mapper::toApproval)
-                                        .toEither()
-                                        .mapLeft(cause -> new PaymentError.ProviderFailure(request.paymentId(), cause))
-                                        .peekLeft(error -> Optional.ofNullable(Observation.currentObservation())
-                                                                   .ifPresent(current -> current.error(error.cause()))));
+@Component
+@RequiredArgsConstructor
+public class ObservedPaymentProviderAdapter implements ApprovePaymentPort {
+
+    private final ObservationRegistry observationRegistry;
+    private final PaymentClient paymentClient;
+    private final PaymentMapper mapper;
+    private final PaymentProviderProperties properties;
+
+    @Override
+    public Either<PaymentError, PaymentApproval> approve(PaymentRequest request) {
+        return Observation.createNotStarted("payment.approve", observationRegistry)
+            .lowCardinalityKeyValue("provider", properties.providerName())
+            .observe(() -> Try.of(() -> paymentClient.approve(mapper.toProviderRequest(request)))
+                .map(mapper::toApproval)
+                .toEither()
+                .mapLeft(cause -> new PaymentError.ProviderFailure(request.paymentId(), cause))
+                .peekLeft(error -> Optional.ofNullable(Observation.currentObservation())
+                    .ifPresent(current -> current.error(error.cause()))));
+    }
 }
 ```
 
