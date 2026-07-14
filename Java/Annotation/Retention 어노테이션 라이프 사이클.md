@@ -8,9 +8,11 @@ group: "[[Java Annotation]]"
 ---
 # @Retention 어노테이션 라이프 사이클
 
+Annotation은 Code에 붙이는 Metadata다. `@Retention`은 이 Metadata를 Source, Class File, Runtime 중 어디까지 보존할지 결정한다. “얼마나 오래 사는가”보다 **누가 Annotation을 읽어야 하는가**를 기준으로 선택한다.
+
 - RetentionPolicy.SOURCE : 소스 코드(.java) 단계까지 어노테이션이 남아있는다. (가장 빨리 사라짐)
 - RetentionPolicy.CLASS : 클래스 파일(.class) 단계까지 어노테이션이 남아있는다.
-- RetentionPolicy.RUNTIME : 런타임까지 어노테이션이 남아있는다. (영구적)
+- RetentionPolicy.RUNTIME : Runtime Reflection으로 읽을 수 있도록 남는다.
 
 ## SOURCE
 
@@ -35,5 +37,60 @@ group: "[[Java Annotation]]"
 -   리플렉션을 사용하여 런타임에 어노테이션 정보를 읽고 활용할 수 있습니다.
 -   **JVM에 의해 유지되며, 런타임 시에 리플렉션을 통해 접근 가능합니다.**
 -   **DI(Dependency Injection) 컨테이너, ORM(Object-Relational Mapping) 프레임워크 등에서 널리 사용됩니다.**
+
+## 직접 Annotation 만들기
+
+```java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Audited {
+    String action();
+}
+```
+
+Runtime에서 Reflection으로 읽을 수 있다.
+
+```java
+Method method = PaymentService.class.getDeclaredMethod("pay");
+Audited audited = method.getAnnotation(Audited.class);
+if (audited != null) {
+    System.out.println(audited.action());
+}
+```
+
+같은 Annotation을 `CLASS`로 바꾸면 Class File에는 기록되지만 `getAnnotation()`으로는 얻을 수 없다. Bytecode Scanner나 Instrumentation Tool은 Class File을 직접 분석해 사용할 수 있다.
+
+## Retention과 Target은 다른 역할이다
+
+`@Target`은 Annotation을 붙일 수 있는 위치를 제한한다.
+
+```text
+TYPE: Class와 Interface
+METHOD: Method
+FIELD: Field
+PARAMETER: Parameter
+ANNOTATION_TYPE: 다른 Annotation
+TYPE_USE: Generic과 Cast를 포함한 Type 사용 위치
+```
+
+`@Retention(RUNTIME)`이라고 모든 위치에 붙일 수 있는 것은 아니다. Target, Retention, Documented와 Inherited를 함께 설계한다.
+
+## @Inherited의 제한
+
+`@Inherited`는 Class에 붙은 Annotation을 Subclass가 `getAnnotation()`으로 조회할 때 상속하게 한다. Method와 Field Annotation에는 적용되지 않고 Interface 구현 관계에도 자동 적용되지 않는다. Spring은 자체 Annotation 탐색 규칙을 제공할 수 있으므로 순수 Java Reflection과 결과가 다를 수 있다.
+
+## 어떤 정책을 선택할까
+
+| 소비자 | 적합한 정책 | 예시 |
+|---|---|---|
+| Compiler·Source Generator | SOURCE | 정적 검사 Hint |
+| Bytecode Tool·IDE | CLASS | Class File Metadata |
+| Spring·Reflection 기반 Framework | RUNTIME | DI, AOP, ORM |
+
+필요 이상으로 `RUNTIME`을 선택한다고 큰 성능 문제가 즉시 생기지는 않지만 Public Runtime 계약이 되고 Reflection 처리 범위가 넓어진다. 실제 소비 시점에 맞는 가장 짧은 정책을 선택한다.
+
+## 기억할 점
+
+Retention은 Annotation이 수행할 동작을 정의하지 않는다. Metadata를 어디까지 운반할지만 정한다. 실제 동작은 Compiler, Bytecode Tool 또는 Runtime Framework가 Annotation을 읽고 구현한다.
 
 # Reference

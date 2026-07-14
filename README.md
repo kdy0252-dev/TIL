@@ -13,6 +13,7 @@
 | [Spring](./Java%20Spring) | Architecture, 데이터 접근, 비동기 처리, 인증, 관측성, Test |
 | [Database](./DBMS) | PostgreSQL, Index, Lock, WAL, Query 최적화, Connection Pool |
 | [Infrastructure](./Infra) | AWS, Kubernetes, GitOps, CI/CD, 관측성, 보안, 운영 자동화 |
+| [Game Development](./게임%20개발) | Netcode, Game Server, Client Architecture, Rendering과 GPU 기술 |
 | [Computer Science](./CS) | 분산 시스템, 운영체제, 자료구조와 알고리즘 |
 | [Software Design](./설계) | Architecture Pattern, 시스템 설계, Production Readiness |
 | [Load Testing](./부하테스트) | k6 설치, 시나리오 설계와 성능 검증 |
@@ -24,6 +25,7 @@
 
 - [AI Coding Agent를 위한 Context Engineering](./AI/AI%20Coding%20Agent를%20위한%20Context%20Engineering.md): 저장소 규칙을 AI가 사용할 수 있는 Context로 설계하는 방법
 - [벡터·텐서에서 NVIDIA GPU Mini GPT까지](./AI/LLM/01.%20벡터%20행렬%20텐서와%20신경망%20가중치.md): 수학 기초부터 Transformer 학습 구현까지 이어지는 LLM 시리즈
+- [Netcode 모델](./게임%20개발/네트워크/Netcode%20모델%20Lockstep%20Snapshot%20Prediction%20Rollback.md): Lockstep, Snapshot, Prediction, Rollback과 Lag Compensation 비교
 - [Production Readiness Review](./설계/Production%20Readiness%20Review.md): 서비스가 운영 가능한지를 검증하는 관점
 - [In-flight Deduplication](./Java%20Spring/Design%20Pattern/In-flight%20Deduplication.md): 동시에 들어온 동일 작업을 하나로 합치는 방법
 - [Projection과 Hydration](./Java%20Spring/DB/JPA/Projection과%20Hydration.md): 조회 모델과 도메인 복원의 경계

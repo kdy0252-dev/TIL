@@ -7,14 +7,17 @@ group:
   - "[[Java Configration]]"
 ---
 # JDK Install
+
+JDK는 Java Compiler, Runtime과 진단 도구를 포함한다. JRE만으로는 `javac`, `jlink`, `jcmd` 같은 개발·운영 도구를 사용할 수 없다. 설치 전 Project의 Toolchain Version, CPU Architecture와 배포 환경 Vendor 정책을 먼저 확인한다.
+
 ### Homebrew 설치 및 업데이트  
 `brew update`
-### cask를 설치  
-`brew install cask`
 ### 설치 가능한 JDK 확인  
 `brew search jdk`
 ### 원하는 버전 설치  
 `brew install --cask temurin@21`
+
+현재 Homebrew에서는 별도로 `brew install cask`를 실행하지 않는다. Cask Package는 `--cask` Option으로 설치한다.
 ### 설치된 위치 확인  
 `/usr/libexec/java_home -V`
 ### 버전 확인  
@@ -32,15 +35,49 @@ bash : `vi ~/.bash_profile`
 ```shell title="JAVA_HOME Setting"
 # Java Paths
 export JAVA_HOME_14=$(/usr/libexec/java_home -v14)
-export JAVA_HOME_21=$(/usr/libexec/java_home -v 21.0.3)
+export JAVA_HOME_21=$(/usr/libexec/java_home -v 21)
 # Java 21
 export JAVA_HOME=$JAVA_HOME_21
 # Java 14
-# 14버전을 사용하고자 하는 경우 아래 주석(#)을 해제하고 위에 11버전을 주석처리 하면된다.
+# 14버전을 사용하려면 아래 줄을 활성화하고 21 설정을 비활성화한다.
 # export JAVA_HOME=$JAVA_HOME_14
 ```
 ### 변경사항 반영  
 zsh: `source ~/.zshrc`  
 bash: `source ~/.bash_profile`
 
+`JAVA_HOME`은 JDK Root를 가리키고 실행 File은 `$JAVA_HOME/bin` 아래에 있다. Shell이 다른 Java를 먼저 찾지 않도록 Path를 확인한다.
+
+```shell
+export PATH="$JAVA_HOME/bin:$PATH"
+
+which java
+java --version
+javac --version
+echo "$JAVA_HOME"
+```
+
+IDE, Gradle Daemon과 Terminal은 서로 다른 JDK를 사용할 수 있다. IntelliJ Project SDK, Gradle JVM, `./gradlew --version`을 함께 확인한다.
+
+## Project별 Version은 Toolchain으로 고정하기
+
+개인 Shell의 기본 Java에만 의존하면 CI와 다른 개발자 환경에서 Build가 달라질 수 있다.
+
+```kotlin title="build.gradle.kts"
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+```
+
+Gradle Toolchain은 Project가 요구하는 Java Version을 Build 설정에 기록한다. Runtime Image와 CI도 같은 Major Version을 사용하고, Patch Update는 보안 정책에 따라 지속적으로 적용한다.
+
+## 여러 Version 전환
+
+단순한 두 Version은 `/usr/libexec/java_home`으로 충분하다. Project 수가 많다면 SDKMAN이나 asdf 같은 Version Manager를 사용할 수 있지만, 팀에서는 한 가지 방식을 정하고 Shell 설정과 Build Toolchain의 책임을 혼동하지 않는다.
+
 # Reference
+[Eclipse Temurin Installation](https://adoptium.net/installation/)
+[Gradle - Java Toolchains](https://docs.gradle.org/current/userguide/toolchains.html)
+[Homebrew Cask](https://docs.brew.sh/Cask-Cookbook)

@@ -13,14 +13,13 @@ WebSocket Reverse Proxy는 클라이언트의 WebSocket 연결 요청을 받아 
 *   **보안**: 실제 WebSocket 서버의 IP 주소, 포트 번호, 서버 종류 등의 정보를 숨겨 외부 공격으로부터 보호한다.
 *   **로드 밸런싱**: 여러 대의 WebSocket 서버에 트래픽을 분산시켜 서버의 부하를 줄인다.
 *   **SSL 암호화**: SSL 암호화를 Reverse Proxy에서 처리하여 서버의 부하를 줄인다.
-*   **캐싱**: 정적 콘텐츠를 캐싱하여 서버의 응답 시간을 줄인다.
-*   **CORS (Cross-Origin Resource Sharing)**: 서로 다른 도메인에서 WebSocket 연결을 허용하도록 설정한다.
+*   **연결 정책**: Origin, 인증, 연결 수와 Timeout을 중앙에서 통제한다.
 ### WebSocket Reverse Proxy의 장점과 단점
 **장점:**
 *   **보안 강화**: 실제 서버 정보를 숨겨 외부 공격으로부터 보호한다.
 *   **로드 밸런싱**: 여러 대의 서버에 트래픽을 분산시켜 서버 부하를 줄인다.
 *   **SSL 암호화**: SSL 암호화를 Reverse Proxy에서 처리하여 서버 부하를 줄인다.
-*   **CORS 지원**: 서로 다른 도메인에서 WebSocket 연결을 허용한다.
+*   **접근 제어**: 허용 Origin과 인증 Header 정책을 중앙화한다.
 *   **유연한 구성**: 다양한 Reverse Proxy 서버 (Nginx, Apache, HAProxy 등)를 사용할 수 있다.
 **단점:**
 *   **추가 설정**: Reverse Proxy 서버를 설정하고 관리해야 한다.
@@ -55,6 +54,9 @@ http {
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 60s;
         }
     }
 }
@@ -86,6 +88,16 @@ const socket = new WebSocket("wss://example.com/ws");
 *   **SSL 인증서**: SSL 인증서를 안전하게 관리해야 한다.
 *   **WebSocket 서버 방화벽**: WebSocket 서버의 방화벽 설정을 확인하여 Reverse Proxy 서버의 접근을 허용해야 한다.
 *   **세션 유지**: 필요한 경우 세션 유지 기능을 설정해야 한다.
+
+## HTTP Upgrade 이후 달라지는 점
+
+처음에는 HTTP Request로 시작하지만 `101 Switching Protocols` 뒤에는 장시간 유지되는 양방향 연결이 된다. 일반 HTTP Response Cache는 WebSocket Frame에 적용되지 않는다. Idle Timeout, 최대 연결 수와 File Descriptor가 REST Traffic과 다른 병목이 된다.
+
+Browser의 `Origin` 검사는 Cross-site 연결을 줄이는 방어층이지 인증이 아니다. 일반 Client는 Header를 만들 수 있으므로 Token이나 Session 인증을 별도로 적용하고, Query String Token은 Access Log에 노출될 수 있어 피한다.
+
+연결이 성립된 뒤 Frame은 같은 Backend로 흐르지만 재연결은 다른 Backend로 갈 수 있다. Session State를 외부화하거나 일관된 Routing 정책을 사용한다. Rolling 배포에서는 새 연결을 먼저 차단하고 기존 연결이 끝날 Grace Period를 준다. Client는 지수 Backoff와 Jitter로 재연결 폭주를 막는다.
+
+관측 지표에는 현재 연결 수, Handshake 실패, 비정상 종료 Code, 연결 지속 시간, Backend별 연결 편차와 재연결률을 포함한다.
 
 WebSocket Reverse Proxy는 WebSocket 서비스의 보안, 성능, 확장성을 향상시키는 데 유용한 기술이다. Nginx, Apache, HAProxy 등 다양한 Reverse Proxy 서버를 사용하여 WebSocket Reverse Proxy를 구성할 수 있다.
 
