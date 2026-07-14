@@ -8,7 +8,7 @@
 
 | 분류 | 주요 내용 |
 |---|---|
-| [AI](./AI) | Coding Agent, Context Engineering, Agent Skill, RAG와 AI Framework |
+| [AI](./AI) | LLM 원리와 GPU 구현, Coding Agent, Context Engineering, RAG와 AI Framework |
 | [Java](./Java) | 언어 메커니즘, 함수형 프로그래밍, JVM 성능 분석, Library |
 | [Spring](./Java%20Spring) | Architecture, 데이터 접근, 비동기 처리, 인증, 관측성, Test |
 | [Database](./DBMS) | PostgreSQL, Index, Lock, WAL, Query 최적화, Connection Pool |
@@ -23,6 +23,7 @@
 ## 추천 시작 문서
 
 - [AI Coding Agent를 위한 Context Engineering](./AI/AI%20Coding%20Agent를%20위한%20Context%20Engineering.md): 저장소 규칙을 AI가 사용할 수 있는 Context로 설계하는 방법
+- [벡터·텐서에서 NVIDIA GPU Mini GPT까지](./AI/LLM/01.%20벡터%20행렬%20텐서와%20신경망%20가중치.md): 수학 기초부터 Transformer 학습 구현까지 이어지는 LLM 시리즈
 - [Production Readiness Review](./설계/Production%20Readiness%20Review.md): 서비스가 운영 가능한지를 검증하는 관점
 - [In-flight Deduplication](./Java%20Spring/Design%20Pattern/In-flight%20Deduplication.md): 동시에 들어온 동일 작업을 하나로 합치는 방법
 - [Projection과 Hydration](./Java%20Spring/DB/JPA/Projection과%20Hydration.md): 조회 모델과 도메인 복원의 경계
