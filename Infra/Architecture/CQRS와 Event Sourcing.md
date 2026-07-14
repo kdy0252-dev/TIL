@@ -78,47 +78,29 @@ public class AccountReadModelProcessor {
 
     @KafkaListener(topics = "dbserver1.inventory.accounts", groupId = "cqrs-group")
     public void processAccountChange(String message) {
-        try {
-            JsonNode root = objectMapper.readTree(message);
-            String operation = root.get("op").asText();
-            JsonNode after = root.get("after");
-            JsonNode before = root.get("before");
-
-            switch (operation) {
-                case "c": // Create
-                case "u": // Update
-                    updateReadModel(after);
-                    break;
-                case "d": // Delete
-                    deleteFromReadModel(before.get("id").asLong());
-                    break;
-                default:
-                    log.warn("지원하지 않는 연산 타입: {}", operation);
-            }
-        } catch (Exception e) {
-            log.error("CDC 메시지 처리 실패", e);
-            // 에러 핸들링: Dead Letter Queue로 보내거나 재시도
-        }
+        Try.of(() -> objectMapper.readValue(message, AccountChangeEvent.class))
+            .toEither()
+            .mapLeft(cause -> new ProjectionError.InvalidEvent(message, cause))
+            .flatMap(this::project)
+            .getOrElseThrow(AccountProjectionException::new);
     }
 
-    private void updateReadModel(JsonNode data) {
-        AccountDocument doc = AccountDocument.builder()
-                .id(data.get("id").asLong())
-                .name(data.get("name").asText())
-                .balance(data.get("balance").asLong())
-                .lastUpdated(LocalDateTime.now())
-                .build();
-        
-        searchRepository.save(doc); // 조회 DB 업데이트
-        log.info("조회 모델 업데이트 완료: {}", doc.getId());
-    }
-
-    private void deleteFromReadModel(Long id) {
-        searchRepository.deleteById(id);
-        log.info("조회 모델 삭제 완료: {}", id);
+    private Either<ProjectionError, Void> project(AccountChangeEvent event) {
+        return switch (event.operation()) {
+            case CREATE, UPDATE -> Try.run(() -> searchRepository.save(
+                    AccountDocument.from(event.after(), event.sourceSequence())
+                ))
+                .toEither()
+                .mapLeft(cause -> new ProjectionError.StoreFailure(event.id(), cause));
+            case DELETE -> Try.run(() -> searchRepository.deleteById(event.before().id()))
+                .toEither()
+                .mapLeft(cause -> new ProjectionError.StoreFailure(event.id(), cause));
+        };
     }
 }
 ```
+
+Listener가 예외를 삼키지 않아야 Container의 Retry와 DLT 정책이 작동한다. Projection 저장은 Source Sequence 또는 Event ID를 함께 기록해 오래된 Event와 중복 Event를 무시해야 한다.
 
 ---
 

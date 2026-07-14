@@ -22,83 +22,67 @@ Tree 구조를 사용할때 유용하다.
 1.  클라이언트는 Component 인터페이스를 통해 객체에 접근한다.
 2.  개별 객체(Leaf)는 자신의 작업을 직접 수행한다.
 3.  복합 객체(Composite)는 자식 객체들에게 작업을 위임하고, 필요에 따라 자식 객체들의 결과를 결합한다.
-## 코드
-```java title="Component.interface"
-public interface Component {
-    void execute();
-}
-```
+## 실무 예제: 복합 요금 항목
 
-실무에서는 `execute()`처럼 의미가 넓은 이름보다 Domain 연산을 사용하고 결과를 반환하는 경우가 많다.
+`execute()`처럼 의미가 넓은 이름 대신 Domain 연산을 공통 계약으로 둔다. 단일 요금과 요금 묶음 모두 금액 계산과 항목 평탄화를 지원한다.
 
 ```java
-public sealed interface PriceComponent permits Product, ProductBundle {
-    Money price();
+public sealed interface FareComponent permits FareLine, FareGroup {
+
+    Money amount();
+
+    Stream<FareLine> flatten();
 }
 
-public record Product(Money price) implements PriceComponent {
+public record FareLine(FareType type, Money amount) implements FareComponent {
+
+    public FareLine {
+        Objects.requireNonNull(type);
+        Objects.requireNonNull(amount);
+    }
+
+    @Override
+    public Stream<FareLine> flatten() {
+        return Stream.of(this);
+    }
 }
 
-public record ProductBundle(List<PriceComponent> children)
-        implements PriceComponent {
+public record FareGroup(String name, List<FareComponent> children) implements FareComponent {
 
-    public ProductBundle {
+    public FareGroup {
+        Objects.requireNonNull(name);
         children = List.copyOf(children);
     }
 
     @Override
-    public Money price() {
+    public Money amount() {
         return children.stream()
-            .map(PriceComponent::price)
-            .reduce(Money.ZERO, Money::add);
-    }
-}
-```
-
-불변 자식 List를 사용하면 외부에서 Tree 구조를 예기치 않게 변경하는 문제를 줄인다.
-
-```java title="Composite.java"
-@Slf4j
-public class Composite implements Component {
-    private final List<Component> componentList = new ArrayList<>();
-
-    public void add(Component component) {
-        componentList.add(component);
+                       .map(FareComponent::amount)
+                       .reduce(Money.ZERO, Money::add);
     }
 
     @Override
-    public void execute() {
-        log.info("Composite");
-        componentList.forEach(Component::execute);
+    public Stream<FareLine> flatten() {
+        return children.stream().flatMap(FareComponent::flatten);
     }
 }
 ```
 
-```java title="Leaf.java"
-@Slf4j
-public class Leaf implements Component {
-    @Override
-    public void execute() {
-        log.info("Leaf");
-    }
+Application Service는 Leaf와 Group을 구분하지 않고 같은 연산을 호출한다.
+
+```java
+public FareSummary summarize(FareComponent root) {
+    Map<FareType, Money> amountByType = root.flatten()
+                                               .collect(Collectors.toUnmodifiableMap(
+                                                   FareLine::type,
+                                                   FareLine::amount,
+                                                   Money::add
+                                               ));
+    return new FareSummary(root.amount(), amountByType);
 }
 ```
 
-```java title="Composite 패턴 사용 예시"
-void compositeTest() {
-    Composite composite_1 = new Composite();
-    Composite composite_0 = new Composite();
-
-    composite_1.add(new Leaf());
-    composite_1.add(new Leaf());
-
-    composite_0.add(new Leaf());
-    composite_0.add(new Leaf());
-    composite_0.add(composite_1);
-
-    composite_0.execute();
-}
-```
+`children`을 방어적으로 복사하므로 외부에서 Tree를 변경할 수 없다. Tree 구성 자체가 업무 검증을 필요로 하면 `FareGroup.create`가 최대 깊이, 빈 Group과 허용하지 않는 조합을 `Validation`으로 검사하게 한다.
 ## 장점
 *   **유연성**: 새로운 Component를 쉽게 추가할 수 있다.
 *   **단순성**: 클라이언트는 개별 객체와 복합 객체를 동일하게 다룰 수 있다.

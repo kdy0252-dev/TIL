@@ -6,99 +6,146 @@ tags:
 group:
   - "[[Design Pattern]]"
 ---
+
 # Command Pattern
 
-## 정의
-Command Pattern은 요청을 객체(Command)로 캡슐화하여 요청을 보내는 객체(Invoker)와 요청을 처리하는 객체(Receiver)를 분리하는 패턴입니다. 이는 마치 **리모컨(Invoker)으로 TV(Receiver)를 조작할 때, 각 버튼(Command)이 특정 동작(채널 변경, 볼륨 조절 등)을 수행하도록 하는 것**과 같습니다. 각 버튼은 실제 TV를 제어하는 코드를 캡슐화하고 있으며, 리모컨은 어떤 버튼이 눌렸는지에 따라 해당 명령을 실행합니다.
+Command Pattern은 “무엇을 실행할지”를 값으로 만든다. 호출자는 Receiver의 Method를 직접 호출하지 않고 Command를 Queue에 저장하거나 Handler에 전달한다. 실행 시각을 늦추고, 재시도·감사·권한 검사·멱등성 같은 공통 정책을 적용할 때 유용하다.
 
-코드에서 보자면 Invoker는 command를 호출하는 호출자가 된다.
-Receiver는 Command 객체가 조작할 객체를 자신의 멤버변수로 들고있는데 이것들이 Receiver이다.
-Command 객체는 Receiver를 조작하는 명령을 실행시키는 주체이다.
+## Command와 DTO를 구분한다
 
-## 목적
-* 요청을 큐에 저장하거나, 로그로 기록하거나, 취소할 수 있도록 합니다.
-* Invoker와 Receiver 사이의 의존성을 줄입니다.
+Web Request는 외부 Protocol DTO이고 Command는 Application이 이해하는 검증된 입력이다. Controller에서 Request를 Command로 명시적으로 변환한다.
 
-## 구성 요소
-* **Command**: 실행될 연산을 캡슐화하는 인터페이스입니다.
-* **ConcreteCommand**: Command 인터페이스를 구현하고, 특정 Receiver에 대한 연산을 수행합니다.
-* **Invoker**: Command 객체를 사용하여 요청을 실행합니다.
-* **Receiver**: 요청을 처리하는 객체입니다.
-* **Client**: Command 객체를 생성하고 Invoker에 제공합니다.
-
-## 구현 예시 (Java)
-```java title="CommandPatternExample.java"
-// Command Interface
-interface Command {
-    void execute();
-}
-
-// Concrete Command
-class LightOnCommand implements Command {
-    private Light light;
-
-    public LightOnCommand(Light light) {
-        this.light = light;
-    }
-
-    @Override
-    public void execute() {
-        light.on();
-    }
-}
-
-// Receiver
-class Light {
-    public void on() {
-        System.out.println("Light is on");
-    }
-
-    public void off() {
-        System.out.println("Light is off");
-    }
-}
-
-// Invoker
-class RemoteControl {
-    private Command command;
-
-    public void setCommand(Command command) {
-        this.command = command;
-    }
-
-    public void pressButton() {
-        command.execute();
-    }
-}
-
-// Client
-public class Client {
-    public static void main(String[] args) {
-        Light light = new Light();
-        LightOnCommand lightOnCommand = new LightOnCommand(light);
-
-        RemoteControl remoteControl = new RemoteControl();
-        remoteControl.setCommand(lightOnCommand);
-        remoteControl.pressButton(); // Output: Light is on
+```java
+public record CancelBookingCommand(
+    long bookingId,
+    String reason,
+    String idempotencyKey,
+    AuditActor actor
+) {
+    public CancelBookingCommand {
+        Objects.requireNonNull(reason);
+        Objects.requireNonNull(idempotencyKey);
+        Objects.requireNonNull(actor);
     }
 }
 ```
 
-## 장점
-*   **결합도 감소**: Invoker와 Receiver 사이의 의존성을 줄여줍니다.
-*   **유연성**: 새로운 Command를 쉽게 추가할 수 있습니다.
-*   **재사용성**: Command 객체를 여러 번 사용할 수 있습니다.
-*   **Undo/Redo 기능**: Command 패턴을 사용하여 실행 취소 및 재실행 기능을 구현할 수 있습니다.
+## Handler 계약
 
-## 단점
-*   클래스 수가 증가하여 코드 복잡성이 증가할 수 있습니다.
+```java
+@FunctionalInterface
+public interface CommandHandler<C, E, R> {
+    Either<E, R> handle(C command);
+}
+```
 
-## 활용 사례
-*   GUI 애플리케이션의 메뉴 또는 버튼 동작
-*   트랜잭션 처리
-*   매크로 기록 및 실행
+```java
+@Service
+@RequiredArgsConstructor
+public class CancelBookingCommandHandler
+    implements CommandHandler<CancelBookingCommand, BookingError, BookingResource> {
 
->[!Info] Command Pattern은 Invoker와 Receiver 사이의 결합도를 낮추고 유연한 시스템을 구축하는 데 유용한 디자인 패턴입니다.
+    private final BookingPort bookingPort;
+    private final IdempotencyPort idempotencyPort;
+    private final BookingEventOutboxPort outboxPort;
+
+    @Override
+    @Transactional
+    public Either<BookingError, BookingResource> handle(CancelBookingCommand command) {
+        return idempotencyPort.findResult(command.idempotencyKey())
+                              .map(Either::<BookingError, BookingResource>right)
+                              .orElseGet(() -> execute(command));
+    }
+
+    private Either<BookingError, BookingResource> execute(CancelBookingCommand command) {
+        return bookingPort.findById(command.bookingId())
+                          .flatMap(booking -> booking.cancel(command.reason(), command.actor()))
+                          .flatMap(bookingPort::save)
+                          .flatMap(saved -> outboxPort.append(BookingCancelled.from(saved))
+                                                      .map(ignored -> saved))
+                          .map(BookingResource::from)
+                          .flatMap(resource -> idempotencyPort.save(command.idempotencyKey(), resource)
+                                                              .map(ignored -> resource));
+    }
+}
+```
+
+Command Handler는 `booking.cancel`이라는 Domain 규칙, 저장과 Outbox를 순서대로 조율한다. 실패가 반환 타입에 있으므로 호출자가 Retry와 HTTP Mapping을 결정할 수 있다.
+
+## Queue에 저장하는 Command
+
+Process Memory의 Lambda는 재시작 후 복원할 수 없다. Durable Queue에 넣을 Command는 Type, Schema Version, ID와 생성 시각을 직렬화 가능한 값으로 저장한다.
+
+```java
+public record CommandEnvelope<T>(
+    UUID commandId,
+    String commandType,
+    int schemaVersion,
+    Instant createdAt,
+    String tenantId,
+    T payload
+) {
+    public static <T> CommandEnvelope<T> create(
+        String commandType,
+        int schemaVersion,
+        String tenantId,
+        T payload,
+        Clock clock
+    ) {
+        return new CommandEnvelope<>(
+            UUID.randomUUID(),
+            commandType,
+            schemaVersion,
+            clock.instant(),
+            tenantId,
+            payload
+        );
+    }
+}
+```
+
+Consumer는 `commandId`로 중복 실행을 막고, 모르는 Schema Version은 DLQ로 보낸다. “한 번만 전달”을 기대하지 않고 같은 Command가 여러 번 와도 결과가 같게 설계한다.
+
+## Command Bus
+
+작은 Application에서는 Handler 직접 주입이 더 단순하다. Command 종류가 많고 Middleware가 필요할 때 Registry 기반 Bus를 고려한다.
+
+```java
+@Component
+public class CommandBus {
+
+    private final Map<Class<?>, CommandHandler<?, ?, ?>> handlers;
+
+    public CommandBus(List<CommandHandler<?, ?, ?>> handlers, CommandTypeResolver typeResolver) {
+        this.handlers = handlers.stream()
+                                .collect(Collectors.toUnmodifiableMap(
+                                    typeResolver::commandTypeOf,
+                                    Function.identity(),
+                                    (first, duplicate) -> {
+                                        throw new IllegalStateException("Duplicate command handler");
+                                    }
+                                ));
+    }
+
+    public <C, E, R> Either<CommandBusError, R> dispatch(C command) {
+        return Optional.ofNullable(handlers.get(command.getClass()))
+                       .map(handler -> cast(handler).handle(command))
+                       .map(result -> result.mapLeft(CommandBusError::handlingFailed))
+                       .orElseGet(() -> Either.left(CommandBusError.handlerNotFound(command.getClass())));
+    }
+}
+```
+
+Generic Cast는 Registry 내부 한곳에 격리하고 등록 시 Type 계약을 검증한다. 모든 Service 호출을 무조건 Bus로 우회시키면 추적성과 Type 안전성이 오히려 나빠질 수 있다.
+
+## Undo의 한계
+
+Memory Editor의 Undo는 반대 Command로 구현할 수 있다. 결제·Message 발행·외부 API처럼 이미 밖으로 나간 Side Effect는 과거를 지우는 것이 아니라 별도의 보상 Command가 필요하다. 보상도 실패할 수 있으므로 상태와 재시도 정책을 저장한다.
+
+## 기억할 점
+
+Command는 Method 호출을 Class로 포장하는 장식이 아니다. 요청을 값으로 만들어 실행을 늦추고 공통 정책을 적용하는 도구다. Durable Command라면 멱등성, Versioning, 감사와 실패 복구가 Pattern의 일부다.
 
 # Reference
-[Commend Pattern 영상](https://www.youtube.com/watch?v=bUULgkwaicQ&ab_channel=%EC%BD%94%EB%93%9C%EC%97%86%EB%8A%94%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%98%EB%B0%8D)
+
+- [Refactoring.Guru - Command](https://refactoring.guru/design-patterns/command)

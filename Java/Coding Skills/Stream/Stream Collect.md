@@ -145,24 +145,24 @@ public interface Collector<T, A, R> {
 *   `finisher()`: 최종 결과를 변환한다.
 ## collect() 사용 예시
 ```java title="collect()를 사용하여 List로 변환"
-List<String> names = Stream.of("Alice", "Bob", "Charlie")
-                        .collect(Collectors.toList());
-System.out.println(names); // [Alice, Bob, Charlie]
+List<BookingResource> resources = bookings.stream()
+                                          .map(BookingResource::from)
+                                          .toList();
 ```
 
 ```java title="collect()를 사용하여 Set으로 변환"
-Set<String> names = Stream.of("Alice", "Bob", "Charlie", "Alice")
-                       .collect(Collectors.toSet());
-System.out.println(names); // [Alice, Bob, Charlie]
+Set<PassengerId> passengerIds = bookings.stream()
+                                        .flatMap(booking -> booking.passengers().stream())
+                                        .map(Passenger::id)
+                                        .collect(Collectors.toUnmodifiableSet());
 ```
 
 ```java title="collect()를 사용하여 Map으로 변환"
-Map<String, Integer> nameLengths = Stream.of("Alice", "Bob", "Charlie")
-                                       .collect(Collectors.toMap(
-                                           name -> name,
-                                           String::length
-                                       ));
-System.out.println(nameLengths); // {Alice=5, Bob=3, Charlie=7}
+Map<BookingId, BookingResource> resourceByBookingId = bookings.stream()
+    .collect(Collectors.toUnmodifiableMap(
+        Booking::id,
+        BookingResource::from
+    ));
 ```
 **예시 설명:**
 *   `Collectors.toList()`: 스트림의 요소들을 List로 수집한다.

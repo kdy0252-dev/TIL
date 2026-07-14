@@ -25,58 +25,31 @@ assertThat(ctlInfoList)
 ## 예제 코드
 ### 예시 1: 나이와 이름으로 정렬
 ```java title="나이와 이름으로 정렬하는 Custom Comparator"
-public class Person {
-    private String name;
-    private int age;
+Comparator<DispatchCandidate> byScoreThenDistanceThenDriverId =
+    Comparator.comparing(DispatchCandidate::score)
+              .reversed()
+              .thenComparingLong(DispatchCandidate::distanceMeters)
+              .thenComparing(DispatchCandidate::driverId);
 
-    public Person(String name, int age) {
-        this.name = name;
-        this.age = age;
-    }
+List<DispatchCandidate> sorted = candidates.stream()
+                                           .sorted(byScoreThenDistanceThenDriverId)
+                                           .toList();
 
-    public String getName() {
-        return name;
-    }
-
-    public int getAge() {
-        return age;
-    }
-}
-
-Comparator<Person> ageAndNameComparator = Comparator.comparing(Person::getAge)
-                                                    .thenComparing(Person::getName);
-
-List<Person> people = Arrays.asList(
-    new Person("Alice", 30),
-    new Person("Bob", 25),
-    new Person("Charlie", 30),
-    new Person("David", 25)
-);
-
-people.sort(ageAndNameComparator);
-
-people.forEach(person -> System.out.println(person.getName() + " " + person.getAge()));
-// Bob 25
-// David 25
-// Alice 30
-// Charlie 30
+assertThat(sorted).extracting(DispatchCandidate::driverId)
+                  .containsExactly(driverA, driverC, driverB);
 ```
 *   `Person` 객체를 나이(`age`)를 기준으로 먼저 정렬하고, 나이가 같은 경우 이름(`name`)을 기준으로 정렬한다.
 *   `Comparator.comparing()` 메서드를 사용하여 나이를 기준으로 정렬하고, `thenComparing()` 메서드를 사용하여 이름을 기준으로 정렬한다.
 ### 예시 2: null 처리와 함께 정렬
 ```java title="null 처리와 함께 정렬하는 Custom Comparator"
-Comparator<String> nullSafeStringComparator = Comparator.nullsFirst(Comparator.naturalOrder());
+Comparator<Instant> nullableCompletedAt = Comparator.nullsLast(Comparator.naturalOrder());
 
-List<String> strings = Arrays.asList("Alice", null, "Bob", "Charlie", null);
-
-strings.sort(nullSafeStringComparator);
-
-strings.forEach(System.out::println);
-// null
-// null
-// Alice
-// Bob
-// Charlie
+List<BookingProjection> sorted = projections.stream()
+                                            .sorted(Comparator.comparing(
+                                                BookingProjection::completedAt,
+                                                nullableCompletedAt
+                                            ))
+                                            .toList();
 ```
 *   `null` 값을 안전하게 처리하면서 문자열을 정렬한다.
 *   `Comparator.nullsFirst()` 메서드를 사용하여 `null` 값을 컬렉션의 맨 앞으로 정렬한다. `Comparator.naturalOrder()`는 기본적인 문자열 정렬을 수행한다.

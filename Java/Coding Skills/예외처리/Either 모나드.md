@@ -7,265 +7,218 @@ group:
   - "[[Design Pattern]]"
   - "[[Functional Programming]]"
 ---
-# Either 모나드 (Either Monad)
 
-## 1. 예외를 값으로 다루기
+# Either 모나드
 
-### 1-1. 전통적인 예외 처리의 한계
-Java에서 전통적인 예외 처리(`try-catch`)는 다음과 같은 문제점을 가집니다.
-1.  **제어 흐름의 단절**: 예외가 발생하면 코드의 실행 흐름이 점프(Jump)하여 로직을 파악하기 어렵습니다.
-2.  **Side Effect**: 메서드 시그니처만으로는 어떤 예외가 던져질지 명확히 알기 어렵습니다(Unchecked Exception의 경우).
-3.  **합성 불가**: 여러 연산을 함수형으로 파이프라인(`Streaming`)처럼 연결할 때, 예외 처리가 섞이면 코드가 지저분해집니다.
+`Either<L, R>`는 실패와 성공을 하나의 반환 타입으로 표현한다. 관례상 `Left`는 실패, `Right`는 성공이다. `Optional<T>`가 값의 부재만 알려 준다면 `Either<Error, T>`는 왜 실패했는지까지 타입으로 전달한다.
 
-### 1-2. Either의 등장
-**Either**는 두 가지 가능한 타입의 값 중 하나만 가질 수 있는 컨테이너입니다.
--   **Left**: 주로 '실패', '에러', '예외' 정보를 담습니다. (관례적으로 오른쪽이 올바른(Right) 쪽이라서, 왼쪽은 아닌 쪽)
--   **Right**: '성공', '정상적인 값'을 담습니다.
+## 언제 사용하는가
 
-이를 통해 **"실패할 수도 있는 연산의 결과"** 자체를 **값(Value)**으로 리턴받아, 함수형 프로그래밍 방식으로 우아하게 처리할 수 있습니다. `java.util.Optional`이 "값이 있거나 없음"을 다룬다면, `Either`는 "값이 있거나 실패 이유가 있음"을 다룹니다.
+- 입력 검증처럼 호출자가 실패 이유에 따라 행동해야 할 때
+- Out Port가 외부 시스템·Database 실패를 반환할 때
+- 여러 실패 가능한 단계를 `flatMap`으로 합성할 때
+- 예외를 숨기지 않고 Use Case 계약에 드러낼 때
 
----
+Programmer Error, 불변식 위반과 복구 불가능한 환경 오류까지 무조건 `Either`로 바꾸는 것은 아니다. 호출자가 처리할 수 있는 예상된 실패를 값으로 만들 때 가장 유용하다.
 
-## 2. Java에서의 Implementation
+## 직접 구현하지 않고 Vavr를 사용한다
 
-Java 표준 라이브러리(Stream API, Optional)는 `Either`를 제공하지 않습니다. (Vavr 같은 라이브러리에 존재).
-학습을 위해 직접 POJO로 구현해 보며 내부 동작을 이해해 봅니다.
+Production에서는 검증되지 않은 자체 `Either`를 만들기보다 Vavr의 `io.vavr.control.Either`를 사용한다. 직접 구현하면 Variance, Stack Safety, `sequence`, `traverse`와 Law 검증까지 책임져야 한다.
 
 ```java
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.function.Consumer;
+import io.vavr.control.Either;
 
-/**
- * Either 모나드 구현체
- * @param <L> Left(에러) 타입
- * @param <R> Right(성공) 타입
- */
-public abstract class Either<L, R> {
+Either<BookingError, Booking> result = Either.right(booking);
 
-    // --- Factory Methods ---
+Either<BookingError, Booking> failure = Either.left(
+    new BookingError.NotFound(bookingId)
+);
+```
 
-    public static <L, R> Either<L, R> left(L value) {
-        return new Left<>(value);
+`map`은 성공값의 타입을 바꾸고, `flatMap`은 다음 실패 가능한 연산을 연결한다. `mapLeft`는 Error를 상위 계층의 Error로 변환한다.
+
+## Hexagonal Architecture에서의 경계
+
+FMS 스타일에서는 Domain Model이 자신의 규칙을 갖고, Application Service가 흐름을 조율하며, 외부 실패는 Port의 `Either`로 받는다.
+
+```text
+Web Adapter -> In Port -> Application Service -> Out Port -> Persistence Adapter
+```
+
+### Error를 문자열로 만들지 않는다
+
+문자열 Error는 Compiler가 종류를 구분할 수 없고 필드도 잃는다. 업무 의미가 있는 Sealed Interface로 정의한다.
+
+```java
+public sealed interface BookingError {
+
+    record NotFound(long bookingId) implements BookingError {
     }
 
-    public static <L, R> Either<L, R> right(R value) {
-        return new Right<>(value);
+    record AlreadyCancelled(long bookingId) implements BookingError {
     }
 
-    // --- Abstract Methods ---
-
-    public abstract boolean isLeft();
-    public abstract boolean isRight();
-    public abstract L getLeft();
-    public abstract R get();
-
-    // --- Monadic Operations ---
-
-    /**
-     * 값을 변환합니다 (Right인 경우에만 적용).
-     * Optional.map과 유사합니다.
-     */
-    public <T> Either<L, T> map(Function<? super R, ? extends T> mapper) {
-        if (isRight()) {
-            return Either.right(mapper.apply(get()));
-        } else {
-            // 타입 캐스팅: Left값은 그대로 유지하면서 타입만 L, T로 변경
-            return (Either<L, T>) this;
-        }
-    }
-
-    /**
-     * 값을 변환하고 구조를 평탄화합니다 (Right인 경우).
-     * Optional.flatMap과 유사합니다.
-     */
-    public <T> Either<L, T> flatMap(Function<? super R, Either<L, T>> mapper) {
-        if (isRight()) {
-            return mapper.apply(get());
-        } else {
-            return (Either<L, T>) this;
-        }
-    }
-
-    /**
-     * Left일 때와 Right일 때의 처리를 각각 정의하여 최종 값을 도출합니다.
-     * 패턴 매칭과 유사한 효과를 냅니다.
-     */
-    public <T> T fold(Function<? super L, ? extends T> leftMapper, 
-                      Function<? super R, ? extends T> rightMapper) {
-        if (isRight()) {
-            return rightMapper.apply(get());
-        } else {
-            return leftMapper.apply(getLeft());
-        }
-    }
-
-    /**
-     * 성공(Right) 시 값을 반환하고, 실패(Left) 시 대체값을 반환합니다.
-     */
-    public R getOrElse(R other) {
-        return isRight() ? get() : other;
-    }
-    
-    /**
-     * Right일 때만 특정 동작(소비)을 수행합니다.
-     */
-    public void ifRight(Consumer<? super R> action) {
-        if (isRight()) {
-            action.accept(get());
-        }
-    }
-
-    // --- Implementations ---
-
-    private static final class Left<L, R> extends Either<L, R> {
-        private final L value;
-
-        private Left(L value) {
-            this.value = Objects.requireNonNull(value);
-        }
-
-        @Override public boolean isLeft() { return true; }
-        @Override public boolean isRight() { return false; }
-        @Override public L getLeft() { return value; }
-        @Override public R get() { throw new NoSuchElementException("Is Left: " + value); }
-        
-        @Override public String toString() { return "Left(" + value + ")"; }
-    }
-
-    private static final class Right<L, R> extends Either<L, R> {
-        private final R value;
-
-        private Right(R value) {
-            this.value = Objects.requireNonNull(value);
-        }
-
-        @Override public boolean isLeft() { return false; }
-        @Override public boolean isRight() { return true; }
-        @Override public L getLeft() { throw new NoSuchElementException("Is Right: " + value); }
-        @Override public R get() { return value; }
-
-        @Override public String toString() { return "Right(" + value + ")"; }
+    record PersistenceFailure(long bookingId, Throwable cause) implements BookingError {
     }
 }
 ```
 
----
+### Out Port
 
-## 3. 실전 활용 시나리오
-
-### 3-1. 시나리오: 사용자 입력 파싱 및 DB 조회
-상황: 문자열 ID를 받아서 -> 정수로 파싱하고 -> DB에서 유저를 찾고 -> 이름을 반환한다.
-이 과정에서 **파싱 에러**와 **DB 조회 실패**가 발생할 수 있다.
-
-#### 0. 준비 코드 (가정)
 ```java
-record User(int id, String name) {}
+public interface BookingPort {
 
-class Repository {
-    // DB 조회 예시: 짝수 ID만 존재한다고 가정
-    public static Either<String, User> findById(int id) {
-        if (id % 2 == 0) return Either.right(new User(id, "User" + id));
-        else return Either.left("User not found with id: " + id);
+    Either<BookingError, Booking> findById(long bookingId);
+
+    Either<BookingError, Booking> save(Booking booking);
+}
+```
+
+### Persistence Adapter
+
+Database Driver가 던진 예외는 Adapter에서 업무 Error로 바꾼다. `Try`는 던져진 예외를 잡는 경계, `Either`는 이후 Application 흐름의 계약이다.
+
+```java
+@Component
+@RequiredArgsConstructor
+public class BookingPersistenceAdapter implements BookingPort {
+
+    private final BookingJpaRepository repository;
+    private final BookingPersistenceMapper mapper;
+
+    @Override
+    @Transactional(readOnly = true)
+    public Either<BookingError, Booking> findById(long bookingId) {
+        return repository.findById(bookingId)
+                         .map(mapper::toDomain)
+                         .<Either<BookingError, Booking>>map(Either::right)
+                         .orElseGet(() -> Either.left(new BookingError.NotFound(bookingId)));
+    }
+
+    @Override
+    @Transactional
+    public Either<BookingError, Booking> save(Booking booking) {
+        return Try.of(() -> repository.save(mapper.toEntity(booking)))
+                  .map(mapper::toDomain)
+                  .toEither()
+                  .mapLeft(cause -> new BookingError.PersistenceFailure(booking.getId(), cause));
     }
 }
 ```
 
-#### 1. 기존 방식 (Try-Catch 지옥)
+### Domain Model
+
+Domain은 영속성 예외를 알지 않는다. 상태 변경 가능 여부를 의미 있는 Method로 검사하고 새 상태를 만든다.
+
 ```java
-public String getUserDateLegacy(String inputId) {
-    try {
-        int id = Integer.parseInt(inputId); // 예외 발생 가능 1
-        User user = null;
-        try {
-            // 이 방식은 예외를 던지는 대신 null 체크를 하거나 커스텀 예외를 써야 함
-            // 여기선 예시를 위해 생략
-        } catch (Exception e) {
-            return "DB Error";
-        }
-        // ... 코드가 깊어지고 지저분함
-        return user.name();
-    } catch (NumberFormatException e) {
-        return "Invalid ID format";
+@Getter
+@Builder(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public final class Booking {
+
+    private final long id;
+    private final BookingStatus status;
+    private final Audit audit;
+
+    public static Booking load(long id, BookingStatus status, Audit audit) {
+        return Booking.builder()
+                      .id(id)
+                      .status(status)
+                      .audit(audit)
+                      .build();
+    }
+
+    public Either<BookingError, Booking> cancel(AuditActor actor) {
+        return Either.cond(
+            status != BookingStatus.CANCELLED,
+            () -> Booking.builder()
+                         .id(id)
+                         .status(BookingStatus.CANCELLED)
+                         .audit(audit.updatedBy(actor))
+                         .build(),
+            () -> new BookingError.AlreadyCancelled(id)
+        );
     }
 }
 ```
 
-#### 2. Either 활용 방식 (Chaining)
+### Application Service
+
+Service는 단계만 읽히도록 `flatMap`으로 연결한다. 각 단계의 세부 규칙은 Domain과 Adapter에 둔다.
+
 ```java
-public class EitherDemo {
-    
-    // 파싱 로직을 Either로 감싸기
-    public static Either<String, Integer> parseId(String input) {
-        try {
-            return Either.right(Integer.parseInt(input));
-        } catch (NumberFormatException e) {
-            return Either.left("Invalid Input: not a number");
-        }
-    }
+@Service
+@RequiredArgsConstructor
+public class CancelBookingService implements CancelBookingUseCase {
 
-    public static void main(String[] args) {
-        String input = "124";
+    private final BookingPort bookingPort;
+    private final AuditActorResolver auditActorResolver;
 
-        // 파이프라인형 처리
-        String result = parseId(input)
-            // 1. 파싱 성공 시 DB 조회 (flatMap: Either -> Either)
-            .flatMap(id -> Repository.findById(id))
-            // 2. DB 조회 성공 시 이름 추출 (map: User -> String)
-            .map(User::name)
-            // 3. 최종 처리 (fold: 에러 처리 vs 성공 처리)
-            .fold(
-                error -> "[ERROR] " + error,
-                name -> "[SUCCESS] User name is " + name
-            );
-
-        System.out.println(result);
+    @Override
+    public Either<BookingError, BookingResource> cancel(CancelBookingCommand command) {
+        return bookingPort.findById(command.bookingId())
+                          .flatMap(booking -> booking.cancel(auditActorResolver.currentActor()))
+                          .flatMap(bookingPort::save)
+                          .map(BookingResource::from);
     }
 }
 ```
 
-**[실행 결과 시뮬레이션]**
-1. `input = "124"` (성공)
-   - parseId -> Right(124)
-   - findById(124) -> Right(User(124, "User124"))
-   - map -> Right("User124")
-   - fold -> "[SUCCESS] User name is User124"
+중간에 `Left`가 생기면 이후 `flatMap`과 `map`은 실행되지 않고 같은 실패가 끝까지 전달된다. 이것이 Short-circuit다.
 
-2. `input = "abc"` (파싱 실패)
-   - parseId -> Left("Invalid Input...")
-   - flatMap -> 실행 안됨 (그대로 Left 전파)
-   - map -> 실행 안됨 (그대로 Left 전파)
-   - fold -> "[ERROR] Invalid Input: not a number"
+## 여러 결과 합치기
 
-3. `input = "123"` (DB 없음)
-   - parseId -> Right(123)
-   - findById(123) -> Left("User not found...")
-   - map -> 실행 안됨 (그대로 Left 전파)
-   - fold -> "[ERROR] User not found with id: 123"
+`List<Either<E, T>>`를 그대로 반환하면 호출자가 각 원소를 풀어야 한다. 하나라도 실패하면 전체를 실패시키는 경우 `sequence`를 사용한다. Vavr Collection을 Domain Collection으로 노출하지 않기 위해 마지막에 `java.util.List`로 바꾼다.
 
----
+```java
+public Either<BookingError, List<Booking>> loadAll(List<Long> bookingIds) {
+    return Either.sequence(
+                     bookingIds.stream()
+                               .map(bookingPort::findById)
+                               .toList()
+                 )
+                 .map(values -> values.toJavaList());
+}
+```
 
-## 4. 모나드(Monad) 관점에서의 해석
+모든 검증 Error를 한꺼번에 모아야 한다면 Fail-fast인 `Either`보다 Vavr `Validation`이 맞다.
 
-`Either`가 모나드라고 불리는 이유는 다음 조건(모나드 법칙)을 대부분 만족하며 동작하기 때문입니다.
+## 경계에서 HTTP 응답으로 변환하기
 
-1.  **Unit (Return)**: 값을 모나드 컨테이너로 감싸는 방법 (`Either.right(v)`).
-2.  **Bind (FlatMap)**: `M<T>` 타입과 `T -> M<U>` 함수를 받아 `M<U>`를 반환하는 연산 (`flatMap`). 
-    -   이 `bind` 연산을 통해 "실패할 수 있는 연산들"을 연속적으로 연결할 수 있습니다.
-    -   중간에 하나라도 `Left`가 발생하면, 이후의 연산(`map`, `flatMap`)들은 모두 무시되고 `Left`가 끝까지 전달되는 **"Short-circuit"** 효과가 발생합니다.
+Domain Error를 Controller 곳곳에서 `instanceof`로 분기하지 않는다. 전용 Mapper 또는 전역 Exception Handler가 HTTP 의미로 변환한다.
 
-## 5. 결론 및 요약
+```java
+@RestController
+@RequiredArgsConstructor
+public class BookingController {
 
-| 특징 | Try-Catch | Either Monad |
-| :--- | :--- | :--- |
-| **흐름 제어** | 예외 발생 시 점프, 코드 블록 분리 | 데이터 흐름처럼 선형적으로 처리 |
-| **타입 안정성** | Checked Exception 외엔 명시 안 됨 | 반환 타입에 에러 가능성이 명시됨 (`Either<Err, User>`) |
-| **합성** | 어렵음 (중첩 try-catch) | 쉬움 (`flatMap` 체이닝) |
-| **가독성** | 비즈니스 로직과 에러 처리가 섞임 | 비즈니스 로직(Happy Path)과 에러 처리(fold)가 분리됨 |
+    private final CancelBookingUseCase cancelBookingUseCase;
+    private final BookingErrorMapper errorMapper;
 
-Java에서는 `Stream`이나 `Optional`을 통해 모나드적 사고에 익숙해져 있습니다. 비즈니스 로직에서 "실패 이유"가 중요할 때는 `Optional` 대신 `Either`를 직접 구현하거나 라이브러리를 사용하여 처리하면, 훨씬 견고하고 유지보수하기 쉬운 코드를 작성할 수 있습니다.
+    @PostMapping("/bookings/{bookingId}/cancellation")
+    public ResponseEntity<BookingResponse> cancel(@PathVariable long bookingId) {
+        return cancelBookingUseCase.cancel(new CancelBookingCommand(bookingId))
+                                   .fold(
+                                       errorMapper::toResponse,
+                                       resource -> ResponseEntity.ok(BookingResponse.from(resource))
+                                   );
+    }
+}
+```
+
+## 자주 하는 실수
+
+- `Either<String, T>`로 Error 구조를 잃는다.
+- `get()`으로 강제로 꺼내 `Either`의 안전성을 없앤다.
+- 모든 Method를 `Either<Exception, T>`로 만들어 업무 실패 종류를 감춘다.
+- Service 안에서 `isLeft()`와 `if`를 반복해 다시 명령형 흐름을 만든다.
+- `peek`에서 State를 변경해 Pipeline의 결과를 예측하기 어렵게 만든다.
+- Domain, Port와 Controller가 같은 Error 타입을 공유해 계층 경계를 흐린다.
+
+## 기억할 점
+
+`Either`의 목적은 `try-catch` 문법을 없애는 것이 아니라 실패를 함수 합성이 가능한 명시적 계약으로 만드는 것이다. Error 타입을 먼저 설계하고, 외부 예외는 Adapter에서 변환하며, Service는 `flatMap`으로 업무 흐름만 보여 주는 것이 핵심이다.
 
 # Reference
-- [Vavr Library - Either](https://docs.vavr.io/#_either)
-- [Monad in Java](https://dzone.com/articles/functor-and-monad-examples-in-java)
+
+- [Vavr Either](https://docs.vavr.io/#_either)

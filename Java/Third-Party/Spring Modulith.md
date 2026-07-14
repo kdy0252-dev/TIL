@@ -165,7 +165,6 @@ public class InventoryEventListener {
     // (옵션: @Transactional(propagation = Propagation.MANDATORY)를 사용하여 기존 트랜잭션에 참여시킬 수도 있습니다.)
     @ApplicationModuleListener
     public void on(OrderPlacedEvent event) {
-        System.out.println("재고 모듈: 주문 이벤트 수신 - Order ID: " + event.orderId());
         inventoryService.decreaseStock(event.productId(), event.quantity());
         // 재고 감소 로직 (예: DB 업데이트)
     }

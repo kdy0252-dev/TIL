@@ -81,7 +81,10 @@ spring:
 
 ```java
 @Configuration
+@RequiredArgsConstructor
 public class LeaderConfig {
+
+    private final ReconciliationScheduler reconciliationScheduler;
 
     @Bean
     public LeaderInitiator leaderInitiator(CuratorFramework client) {
@@ -98,14 +101,12 @@ public class LeaderConfig {
 
             @Override
             public void onGranted(Context ctx) {
-                System.out.println("I am leader now!");
-                startBatchJob();
+                reconciliationScheduler.start(ctx.getRole());
             }
 
             @Override
             public void onRevoked(Context ctx) {
-                System.out.println("I lost leadership.");
-                stopBatchJob();
+                reconciliationScheduler.stop(ctx.getRole());
             }
         });
     }

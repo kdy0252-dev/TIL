@@ -85,8 +85,9 @@ Concurrent Collection을 사용하면 Data Race는 막을 수 있지만 Lock 경
 Ordered Source에서 `toList()`와 `forEachOrdered()`는 Encounter Order를 보존할 수 있다. 그러나 순서를 유지하기 위한 Coordination은 비용이 든다.
 
 ```java
-values.parallelStream().forEach(System.out::println);        // 순서 불명
-values.parallelStream().forEachOrdered(System.out::println); // 순서 보존
+List<ProcessedRoute> orderedRoutes = routes.parallelStream()
+                                           .map(routeProcessor::process)
+                                           .toList(); // Ordered Stream의 Encounter Order 보존
 ```
 
 연산이 순서에 의존한다면 병렬화 가능성부터 다시 검토한다. `findAny()`는 병렬 환경에서 빠른 결과를 허용하고 `findFirst()`는 첫 요소 계약을 지켜야 한다.

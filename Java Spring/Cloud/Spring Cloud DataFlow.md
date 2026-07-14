@@ -83,20 +83,18 @@ implementation 'org.springframework.cloud:spring-cloud-starter-stream-rabbit' //
 
 **코드 (`Function` 기반)**
 ```java
-@SpringBootApplication
-public class TransformProcessorApplication {
+@Configuration
+public class BookingEventProcessorConfiguration {
 
-    public static void main(String[] args) {
-        SpringApplication.run(TransformProcessorApplication.class, args);
-    }
-
-    // String을 받아 대문자로 변환하는 Processor
     @Bean
-    public Function<String, String> uppercase() {
-        return message -> {
-            System.out.println("Processing: " + message);
-            return message.toUpperCase();
-        };
+    public Function<BookingCreated, NotificationCommand> bookingNotification() {
+        return event -> new NotificationCommand(
+            event.eventId(),
+            event.tenantId(),
+            event.passengerId(),
+            NotificationTemplate.BOOKING_CREATED,
+            Map.of("bookingId", event.bookingId().toString())
+        );
     }
 }
 ```

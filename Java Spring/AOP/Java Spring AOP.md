@@ -39,19 +39,26 @@ build.gradle.kts 파일에 아래와 같이 의존성을 추가한다.
 implementation("org.springframework.boot:spring-boot-starter-aop")
 ```
 ### Aspect 작성
-```Java title="Aspect 예시"
-@Aspect  
-@Component  
-public class PerfAspect {  
-	@Around("execution(* com.dykim..*.EventService.*(..))")  
-	public Object logPerf(ProceedingJoinPoint pjp) throws Throwable{  
-		long begin = System.currentTimeMillis();  
-		Object retVal = pjp.proceed(); // 메서드 호출 자체를 감쌈  
-		System.out.println(System.currentTimeMillis() - begin);  
-		return retVal;  
-	}  
+```java title="Aspect 예시"
+@Aspect
+@Component
+@RequiredArgsConstructor
+public class UseCaseObservationAspect {
+
+    private final ObservationRegistry observationRegistry;
+
+    @Around("@annotation(ObservedUseCase)")
+    public Object observe(ProceedingJoinPoint joinPoint) {
+        String operation = joinPoint.getSignature().toShortString();
+
+        return Observation.createNotStarted("application.use-case", observationRegistry)
+            .lowCardinalityKeyValue("operation", operation)
+            .observeChecked(joinPoint::proceed);
+    }
 }
 ```
+
+직접 시간을 재서 표준 출력에 남기지 않고 Micrometer Observation으로 처리 시간, 실패와 Trace Context를 함께 기록한다. `operation`에는 User ID 같은 높은 Cardinality 값을 넣지 않는다.
 
 **@Around** 어노테이션은 타겟 Method를 감싸서 Aspect를 실행시키겠다는 의미이다.
 Around 어노테이션의 Parameter인 execution(\* com.dykim..\*.EventService.\*(..))의 의미는 com.dykim 패키지 하위의 경로의 EventService 객체의 모든 메소드에 Aspect를 적용시키겠다는 의미이다.

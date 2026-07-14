@@ -1,183 +1,184 @@
 ---
-id: Join 설정
-started: 2025-03-13
+id: Table Join 설정
+started: 2025-03-18
 tags:
   - ✅DONE
-  - Java
-  - Spring
   - JPA
-  - DB
-group: "[[Java Spring JPA]]"
+group: "[[Java Spring DB]]"
 ---
-# Table Join 설정
-## 예시코드
-### OneToOne
-아래는 연관관계의 주인이되는 테이블이다.
-```Java title="OneToOne Example"
+
+# JPA 연관 관계 Mapping
+
+JPA 연관 관계는 객체 Graph를 편하게 탐색하기 위한 기능이지 Foreign Key 설계를 대신하지 않는다. Database FK의 소유 Table, Aggregate 경계와 Query 요구를 먼저 정한 뒤 최소한의 방향만 Mapping한다.
+
+## 기본 원칙
+
+- To-one은 `LAZY`를 명시한다.
+- To-many Collection은 빈 Collection으로 초기화한다.
+- 양방향 Mapping은 양쪽 탐색이 실제로 필요할 때만 사용한다.
+- 연관 관계 편의 Method 한곳에서 양쪽을 동기화한다.
+- `equals/hashCode/toString`에 Lazy 연관 관계를 넣지 않는다.
+- Entity를 Web Response로 직접 직렬화하지 않는다.
+- FK Column과 Index는 Liquibase Changelog로 관리한다.
+
+## Many-to-one이 FK를 소유한다
+
+`passenger_booking.booking_id`가 FK이면 `PassengerBookingJpaEntity`가 연관 관계의 소유자다.
+
+```java
 @Entity
-public class Member {
-	@OneToOne
-	@JoinColumn(name = "locker_id")
-	private Locker locker;
-}
-```
-mappedBy가 있는 컬럼은 연관관계의 주인이 아닌 컬럼이다. 따라서 실제 DB에는 저장되지 않는다.
-Locker로 Member를 찾는 경우가 없다면 Locker에는 굳이 Member를 들고 있을 필요가 없다.
-```Java title="OneToOne Example"
-@Entity
-public class Locker {
-	@OneToOne(mappedBy = "locker")
-	private Member member;
-}
-```
-> [!Warning] mappedBy 사용 시
-> mappedBy에는 연관관계 주인의 foreign key 컬럼의 이름을 적어주어야한다.
-> Order 테이블에서 Member 테이블을 사용하는 경우 필연적으로 N+1 문제가 생길 수 밖에 없다.
-### OneToMany
-```Java title="OneToMany Example"
-@Entity
-public class User {
+@Table(name = "passenger_booking")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class PassengerBookingJpaEntity {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String userName;
 
-    @OneToMany
-    @JoinColumn(name = "posts_id")
-    private List<Post> posts = new ArrayList<>();
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "booking_id", nullable = false)
+    private BookingJpaEntity booking;
+
+    @Column(name = "passenger_id", nullable = false)
+    private Long passengerId;
+
+    static PassengerBookingJpaEntity create(
+        Long id,
+        BookingJpaEntity booking,
+        Long passengerId
+    ) {
+        PassengerBookingJpaEntity entity = new PassengerBookingJpaEntity();
+        entity.id = id;
+        entity.booking = Objects.requireNonNull(booking);
+        entity.passengerId = Objects.requireNonNull(passengerId);
+        return entity;
+    }
 }
 ```
-Posts로 User를 조회하는 경우가 없는 경우 종속관계의 테이블에 mappedBy를 설정하지 않아도 된다.
-> [!Warning] 주의사항
-> 연관관계의 주인과 반대로 어노테이션을 걸어주어야한다.
-```Java title="OneToMany Example"
+
+## One-to-many의 `mappedBy`
+
+`mappedBy` 값은 Column 이름이 아니라 상대 Entity의 Field 이름이다.
+
+```java
 @Entity
-public class Posts {
+@Table(name = "booking")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class BookingJpaEntity {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-	
-	@Column
-    private String title;
 
-    @ManyToOne
-    @JoinColumn(mappedBy = "posts")
-    private User user;
+    @OneToMany(
+        mappedBy = "booking",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true
+    )
+    private final List<PassengerBookingJpaEntity> passengers = new ArrayList<>();
+
+    public void replacePassengers(List<Long> passengerIds) {
+        passengers.clear();
+        passengerIds.stream()
+                    .map(passengerId -> PassengerBookingJpaEntity.create(
+                        TSID.fast().toLong(),
+                        this,
+                        passengerId
+                    ))
+                    .forEach(passengers::add);
+    }
 }
 ```
-> [!Warning] mappedBy 사용 시
-> mappedBy에는 연관관계 주인의 foreign key 컬럼의 이름을 적어주어야한다.
-### ManyToOne
-```Java title="ManyToOne Example"
+
+Entity 내부 Collection 변경은 JPA Dirty Checking 때문에 Mutable해야 할 수 있다. 외부에는 수정 가능한 Collection을 직접 노출하지 않고 조회 시 `List.copyOf(passengers)`를 반환하는 방법을 고려한다.
+
+## One-to-one
+
+실제 Cardinality가 정말 1:1인지 확인한다. FK에 Unique Constraint가 없다면 Database는 여러 Row가 같은 대상을 참조하는 것을 막지 못한다.
+
+```java
+@OneToOne(fetch = FetchType.LAZY, optional = false)
+@JoinColumn(name = "profile_id", nullable = false, unique = true)
+private DriverProfileJpaEntity profile;
+```
+
+공유 Primary Key 관계라면 `@MapsId`를 사용할 수 있다.
+
+```java
 @Entity
-public class Account {
+@Table(name = "driver_profile")
+public class DriverProfileJpaEntity {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-	
-	@Column
-    private String accountName;
-	
-	@Column
-	private int deposit;
-	
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
-}
-```
-User로 Account를 조회하는 경우가 없는 경우 종속관계의 테이블에 mappedBy를 설정하지 않아도 된다.
-> [!Warning] 주의사항
-> 연관관계의 주인과 반대로 어노테이션을 걸어주어야한다.
-```Java title="OneToMany Example"
-@Entity
-public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-	
-	@Column
-    private String userName;
+    private Long driverId;
 
-    @ManyToOne
-    @JoinColumn(mappedBy = "user")
-    private List<Account> accounts = new ArrayList<>();
-}
-```
-> [!Warning] mappedBy 사용 시
-> mappedBy에는 연관관계 주인의 foreign key 컬럼의 이름을 적어주어야한다.
-> User 테이블에서 Account 테이블을 사용하는 경우 필연적으로 N+1 문제가 생길 수 밖에 없다.
-
-### ManyToMany
-> [!Warning] ManyToMany는 되도록 사용하지 않는 것이 좋다.
-> ManyToMany를 사용해야만 하는 상황이라면 중간 테이블을 만들어 OneToMany와 ManyToOne의 형태로 만드는 것이 유지보수에 좋다.
-
----
-## Annotation Options
-### fetch = FetchType.LAZY or FetchType.EAGER
-```Java title="예시 코드"
-@Entity
-public class Member {
-	@OneToOne(fetch = FetchType.LAZY) // FetchType.EAGER
-	@JoinColumn(name = "locker_id")
-	private Locker locker;
-}
-```
-OneToOne 뿐만 아니라 OneToMany ManyToOne에도 해당 옵션이 있다.
-데이터 조회 시 실제 데이터를 사용하기 전에는 연관관계가 설정된 컬럼을 조회하지 않고 기다리는 옵션이다.
->[!Warning] 사용 시 주의사항
->N+1 문제가 발생할 수 있으므로 사용 시 주의가 필요하다.
-### @JoinColumn(referencedColumnName = "idx")
-실제 참조할 값의 컬럼을 직접 설정 해줄 수 있다. Primary Key가 아닌 것들도 설정할 수 있으나 권장하지 않는다.
-```Java title="UserEntity (referencedColumnName 예시코드)"
-@Table(name = "user")
-@Entity
-public class User {
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_info_idx", referencedColumnName = "user_id")
-    private UserInfo userInfo;
+    @MapsId
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "driver_id")
+    private DriverJpaEntity driver;
 }
 ```
 
-```Java title="UserInfoEntity (referencedColumnName 예시코드)"
-@Table(name = "user_info")
-@Entity
-public class UserInfo {
-	@Id
-	private Long id;
+## Many-to-many를 직접 Mapping하지 않는 이유
 
-	@Column
-	private Long userId;
-}
+Join Table에 생성 시각, 역할, 상태와 순서가 추가되는 순간 독립 Entity가 필요하다. 업무 시스템에서는 처음부터 연결 Entity로 모델링하는 편이 변경에 안전하다.
 
+```text
+driver <- driver_center_membership -> center
 ```
 
-### Casecade
-case cade 는 두 테이블의 컬럼이 따로 생성되는 것이 아니라 같이 생성되고 관리되어야 하는 경우에 설정한다.
+`DriverCenterMembershipJpaEntity`가 `driver_id`, `center_id`, `role`, `joined_at`을 갖고 두 개의 Many-to-one을 Mapping한다.
 
-### orphanRemoval
-orphanRemoval 옵션을 사용하면 부모 객체와의 연관관계가 끊어진 자식을 자동으로 삭제 할 수 있다.
+## Aggregate 경계 밖은 ID로 참조하기
 
---- 
-## Table Join을 해야하는 이유
-1. **객체-관계 불일치 해소**  
-    객체 지향 프로그래밍에서는 객체 간의 관계(예: 상속, 연관, 집합 등)를 사용하지만, 관계형 데이터베이스는 테이블 간의 관계(예: 외래키)를 사용합니다. 연관관계 매핑은 이 두 모델 간의 구조적 차이를 연결해 주어, 애플리케이션의 도메인 모델과 데이터베이스 스키마 간의 간극(gap)을 메꿔줍니다.
-2. **개발 생산성 및 유지보수 향상**  
-    연관관계 매핑을 통해 개발자는 SQL을 직접 작성하지 않고도 객체 간의 관계를 코드 내에서 자연스럽게 다룰 수 있습니다. ORM 프레임워크가 자동으로 필요한 JOIN이나 데이터 조회, 저장 작업을 처리해 주기 때문에 개발 시간이 단축되고, 코드의 유지보수성이 높아집니다.
-3. **데이터 무결성 보장**  
-    올바르게 매핑된 연관관계는 데이터베이스의 외래키 제약조건과 결합되어 데이터 무결성을 보장합니다. 예를 들어, 부모-자식 관계에서 부모 데이터가 삭제될 때 자식 데이터에 미치는 영향 등을 매핑 설정을 통해 관리할 수 있습니다.
-4. **추상화와 캡슐화**  
-    데이터베이스의 복잡한 구조나 JOIN 연산 등은 매핑 계층에서 추상화되어, 개발자는 객체 모델에 집중할 수 있습니다. 이는 도메인 로직을 간결하게 유지하고, 비즈니스 로직과 데이터 접근 로직의 분리를 명확하게 합니다.
-5. **확장성과 유연성**  
-    도메인 모델이 변경되거나 새로운 기능이 추가될 때, 연관관계 매핑을 통해 데이터베이스와 애플리케이션 간의 연동을 보다 쉽게 관리할 수 있습니다. 즉, 변화에 대응하기 용이한 구조를 만들 수 있습니다.
+Booking Aggregate가 Passenger Aggregate 전체를 JPA 연관 관계로 가지면 한 Aggregate 변경이 다른 Aggregate Loading과 Cascade로 번질 수 있다. 다른 Vertical Slice 또는 Aggregate는 `passengerId` 같은 식별자만 저장하고 필요한 정보는 Query Port로 Batch 조회한다.
 
----
-## 주의사항
-#### ManyToMany 사용을 피한다.
+```java
+@Column(name = "passenger_id", nullable = false)
+private Long passengerId;
+```
 
-#### MappedBy는 연관관계의 주인이 아니기때문에 실제 데이터베이스에는 값이 저장되지 않는다.
+## Cascade와 orphanRemoval
 
-#### Join된 테이블의 컬럼을 조회할때 **N+1** 문제를 항상 생각하여야한다.
-#### 컬렉션이나 캐시를 사용하는 경우, 엔티티의 equals와 hashCode를 올바르게 구현하지 않으면 예상치 못한 동작이 발생할 수 있으므로 주의 해야한다.
+- `cascade = ALL`은 부모와 자식이 같은 Aggregate Lifecycle을 가질 때만 사용한다.
+- `REMOVE`가 외부 Aggregate까지 전파되지 않게 한다.
+- `orphanRemoval = true`는 Collection에서 제거된 자식 Row를 삭제한다.
+- 대량 교체는 `clear + addAll`이 많은 DELETE/INSERT를 만들 수 있으므로 Diff Sync를 고려한다.
 
-# Reference
+## Query 전략
+
+Mapping의 `LAZY/EAGER`만으로 Use Case별 Query를 최적화하지 않는다. 상세는 Fetch Join, 목록은 Projection·Two-step Pagination, 여러 Lazy Collection은 Batch Fetch를 사용한다.
+
+```java
+@EntityGraph(attributePaths = "passengers")
+@Query("select booking from BookingJpaEntity booking where booking.id = :bookingId")
+Optional<BookingJpaEntity> findDetail(@Param("bookingId") long bookingId);
+```
+
+## Schema Migration
+
+```yaml
+databaseChangeLog:
+  - changeSet:
+      id: add-passenger-booking-foreign-key
+      author: team
+      changes:
+        - addForeignKeyConstraint:
+            baseTableName: passenger_booking
+            baseColumnNames: booking_id
+            referencedTableName: booking
+            referencedColumnNames: id
+            constraintName: fk_passenger_booking_booking
+        - createIndex:
+            tableName: passenger_booking
+            indexName: idx_passenger_booking_booking_id
+            columns:
+              - column:
+                  name: booking_id
+```
+
+Entity Annotation만 추가하고 Schema Changelog를 빼먹으면 환경마다 Schema가 달라진다.
+
+## 기억할 점
+
+연관 관계 Mapping은 탐색 편의보다 Aggregate와 FK 소유권을 먼저 반영해야 한다. Lazy를 기본으로 하고, 양방향과 Cascade를 최소화하며, 다른 Aggregate는 ID로 참조하고, Query 전략과 Liquibase Migration을 함께 검증한다.

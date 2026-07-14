@@ -7,184 +7,182 @@ tags:
 group:
   - "[[Java Coding Skills]]"
 ---
+
 # Optional 사용 시 주의사항
 
-Java 8부터 도입된 `Optional<T>`은 `null`을 직접 다루는 것보다 안전하고 명시적인 방법을 제공하지만, 잘못 사용하면 오히려 코드 복잡도를 높이고 성능을 저하시킬 수 있습니다. 올바른 사용법과 주의사항을 상세히 정리합니다.
+`Optional<T>`은 Method가 정상적으로 값을 찾지 못할 수 있음을 반환 타입에 표현한다. 실패 이유가 필요 없는 “0개 또는 1개”의 조회 결과에 적합하다. 모든 `null`을 감싸는 범용 Container는 아니다.
 
-## 1. Optional이란?
-`Optional<T>`는 `null`이 될 수 있는 객체를 감싸는 Wrapper 클래스입니다.
-- **주 목적**: 결과 없음(null)을 명확하게 표현하여 `NullPointerException`(NPE)을 방지하고, 클라이언트 코드에게 명시적으로 처리를 강제하는 것입니다.
-- **설계 의도**: 메서드의 **반환 타입**으로 제한적으로 사용되도록 설계되었습니다.
+## 어떤 타입을 선택할까
 
----
+| 상황 | 타입 |
+|---|---|
+| 값이 없을 수 있고 이유가 중요하지 않음 | `Optional<T>` |
+| 성공 또는 구체적인 실패 이유 | `Either<E, T>` |
+| 예외를 던지는 외부 호출 | `Try<T>` 후 경계에서 `Either` 변환 |
+| 0개 이상 결과 | `List<T>` |
+| 여러 입력 Error 누적 | `Validation<E, T>` |
 
-## 2. 절대 하지 말아야 할 것 (Anti-Patterns)
-
-### 1. 필드(멤버 변수)로 사용하지 말 것
-`Optional`은 데이터를 저장하기 위한 용도가 아닙니다. 필드로 사용하면 직렬화(Serialization) 문제가 발생하고, 메모리 사용량이 불필요하게 증가합니다.
+## 반환 타입에 사용한다
 
 ```java
-// BAD: 직렬화 시 문제 발생 가능, 메모리 낭비
-public class Member {
-    private Optional<String> name; 
-}
+public interface PassengerQueryPort {
 
-// GOOD: null을 허용하거나 별도의 null 처리 로직 사용
-public class Member {
-    private String name;
+    Optional<Passenger> findByPhoneNumber(PhoneNumber phoneNumber);
+
+    List<Passenger> findAllByCenterId(long centerId);
 }
 ```
 
-> **직렬화 문제**: `Optional` 클래스는 `Serializable` 인터페이스를 구현하지 않았습니다. 따라서 Jackson이나 Java 기본 직렬화를 사용할 때 예기치 않은 오류가 발생하거나, 비효율적인 JSON 형태(`{"present":true, ...}`)로 매핑될 수 있습니다.
-
-### 2. 생성자나 메서드의 파라미터로 사용하지 말 것
-파라미터로 `Optional`을 받으면 호출자가 `Optional.of`나 `Optional.empty()`로 감싸서 넘겨야 하므로 호출 코드가 지저분해집니다. 또한, 파라미터 자체가 `null`인 경우도 체크해야 하므로 복잡도가 증가합니다.
+`findByPhoneNumber`의 부재는 정상적인 조회 결과일 수 있다. 반면 반드시 존재해야 하는 Use Case에서는 Service가 업무 Error로 바꾼다.
 
 ```java
-// BAD
-public void updateMember(Optional<String> name) {
-    if (name != null && name.isPresent()) { ... }
-}
-
-// GOOD: 오버로딩을 사용하거나 null 체크를 내부에서 수행
-public void updateMember(String name) {
-    if (name != null) { ... }
+public Either<PassengerError, PassengerResource> getPassenger(long passengerId) {
+    return passengerPort.findById(passengerId)
+                        .<Either<PassengerError, Passenger>>map(Either::right)
+                        .orElseGet(() -> Either.left(new PassengerError.NotFound(passengerId)))
+                        .map(PassengerResource::from);
 }
 ```
 
-### 3. 컬렉션을 Optional로 감싸지 말 것
-`Optional<List<T>>`는 절대 사용하지 마세요. 컬렉션은 비어있음(`empty`)을 자체적으로 표현할 수 있습니다.
+## Field와 Parameter에 넣지 않는다
+
+JPA Entity, DTO와 Domain Field에 `Optional`을 저장하면 Serialization과 Mapping 계약이 복잡해진다. Optional Parameter는 호출자가 Container를 만들어야 하고 Parameter 자체가 `null`일 가능성도 남는다.
 
 ```java
-// BAD
-public Optional<List<String>> getNames() { ... }
-
-// GOOD: 빈 리스트 반환 (Collections.emptyList())
-public List<String> getNames() {
-    return result != null ? result : Collections.emptyList();
+public record UpdatePassengerCommand(
+    long passengerId,
+    String displayName,
+    PhoneNumber phoneNumber
+) {
 }
 ```
 
-### 4. 단지 null 체크를 위해 사용하지 말 것
-`Optional`을 생성하고 `.get()`하는 비용은 단순 `null` 체크보다 훨씬 비쌉니다.
+Patch API처럼 “전달하지 않음”과 “명시적으로 제거”를 구분해야 한다면 `Optional` Parameter로 얼버무리지 말고 `FieldUpdate<T>` 같은 명시적 Command 타입을 설계한다.
 
 ```java
-// BAD
-return Optional.ofNullable(user).orElse(defaultUser);
+public sealed interface FieldUpdate<T> {
 
-// GOOD
-return user != null ? user : defaultUser;
-```
+    record Unchanged<T>() implements FieldUpdate<T> {
+    }
 
----
+    record Replace<T>(T value) implements FieldUpdate<T> {
+    }
 
-## 3. 올바른 사용법 (Best Practices)
-
-### 1. 반환 타입으로만 사용하세요
-메서드가 값을 반환하지 못할 가능성이 있을 때만 `Optional`을 반환 타입으로 사용합니다.
-
-### 2. `get()` 호출 전에는 반드시 `isPresent()`를 확인하거나, `orElse` 계열 메서드를 사용하세요
-`get()`을 바로 호출하는 것은 `NoSuchElementException`을 발생시킬 수 있어 위험합니다. 가능한 `get()` 사용을 피하고 함수형 스타일로 처리하세요.
-
-### 3. `orElse()` vs `orElseGet()` 구분하기
-- `orElse(T other)`: 값이 있든 없든 **항상 실행**됩니다. 이미 생성된 상수나 값을 사용할 때 적합합니다.
-- `orElseGet(Supplier<? extends T> other)`: 값이 **없을 때만 실행**됩니다. 객체 생성 비용이 비싸거나 연산이 필요한 경우 사용합니다.
-
-```java
-// BAD: 값이 있어도 createNewUser()가 실행되어 불필요한 DB 접근이나 객체 생성이 발생
-User user = findUser().orElse(createNewUser());
-
-// GOOD: 값이 없을 때만 실행됨
-User user = findUser().orElseGet(() -> createNewUser());
-```
-
-### ✅ 4. Primitve Type은 전용 Optional 사용하기
-`Optional<Integer>`, `Optional<Long>` 대신 `OptionalInt`, `OptionalLong`, `OptionalDouble`을 사용하면 Boxing/Unboxing 오버헤드를 줄일 수 있습니다.
-
----
-
-## 4. Java 버전에 따른 변화
-
-### Java 8
-- `isPresent()`: 값 존재 여부 확인
-- `ifPresent(Consumer)`: 값이 있으면 동작 수행
-- `orElse()`, `orElseGet()`, `orElseThrow()`: 값 부재 시 처리
-- `map()`, `flatMap()`, `filter()`: 스트림과 유사한 처리
-
-### Java 9
-- **`ifPresentOrElse(Consumer, Runnable)`**: 값이 있으면 Consumer, 없으면 Runnable 실행 (매우 유용)
-- `or(Supplier)`: 값이 없을 때 다른 Optional로 대체
-- `stream()`: Stream으로 자동 변환
-
-### Java 10
-- `orElseThrow()`: 인자 없이 사용 가능 (`NoSuchElementException` 발생). `get()`보다 명시적이라 권장됨.
-
----
-
-## 5. 상세 활용 예제
-
-### Map과 FlatMap 활용
-중첩된 객체 구조에서 `null` 안전하게 값 꺼내기.
-
-```java
-// Before: 지옥의 null 체크
-if (order != null) {
-    Member member = order.getMember();
-    if (member != null) {
-        Address address = member.getAddress();
-        if (address != null) {
-            return address.getCity();
-        }
+    record Clear<T>() implements FieldUpdate<T> {
     }
 }
-
-// After: Optional 활용
-return Optional.ofNullable(order)
-    .map(Order::getMember)
-    .map(Member::getAddress)
-    .map(Address::getCity)
-    .orElse("Unknown");
 ```
 
-### ifPresentOrElse 사용 (Java 9+)
-값이 있을 때와 없을 때의 로직을 깔끔하게 분기 처리.
+## Collection을 Optional로 감싸지 않는다
+
+조회 결과가 없으면 빈 불변 Collection을 반환한다. `Optional<List<T>>`는 “Optional 없음”과 “빈 List”라는 중복 상태를 만든다.
 
 ```java
-Optional<User> userOpt = findUser(id);
-
-// Java 8 Style
-if (userOpt.isPresent()) {
-    log.info("User found: " + userOpt.get());
-} else {
-    log.warn("User not found");
+public List<BookingResource> findBookings(long passengerId) {
+    return bookingPort.findAllByPassengerId(passengerId)
+                      .stream()
+                      .map(BookingResource::from)
+                      .toList();
 }
-
-// Java 9+ Style
-userOpt.ifPresentOrElse(
-    user -> log.info("User found: " + user),
-    () -> log.warn("User not found")
-);
 ```
 
-### 빈 컬렉션 처리와 Stream 연결
-Optional이 비어있으면 빈 스트림으로 처리하여 로직을 이어갈 수 있습니다.
+Port도 `null` 대신 `List.of()`를 반환한다는 계약을 지켜야 한다.
+
+## `map`, `flatMap`과 `filter`
+
+`map`의 Mapper가 `Optional<U>`를 반환하면 `Optional<Optional<U>>`가 되므로 `flatMap`을 사용한다.
 
 ```java
-List<String> items = getOptionalList() // Optional<List<String>> 반환 가정
-    .stream() // Java 9 method: Stream<List<String>>
-    .flatMap(List::stream) // List<String> -> Stream<String>
-    .collect(Collectors.toList());
+public Optional<PhoneNumber> resolvePrimaryPhone(Passenger passenger) {
+    return Optional.ofNullable(passenger.contact())
+                   .map(Contact::phoneNumbers)
+                   .stream()
+                   .flatMap(List::stream)
+                   .filter(PhoneNumber::primary)
+                   .findFirst();
+}
 ```
 
-## 6. 결론
-> "Optional은 리턴 타입으로 사용되도록 설계되었다. 메서드 인자, 맵의 키, 인스턴스 필드 등으로 사용하는 것은 설계 의도에 어긋나며 성능상 이점도 없다."
-> — Brian Goetz (Java Language Architect)
+중간 Getter가 `null`을 반환하는 Legacy Model이라면 경계를 Adapter로 한정하고 Domain 내부에는 유효한 Value Object를 전달한다.
 
-- **Optional은 비싸다**: 객체 생성 비용이 듭니다. 성능이 매우 중요한 루프 안에서는 `null` 체크가 나을 수 있습니다.
-- **가독성을 위해 사용하라**: 복잡한 null 체크를 줄이고 의도를 명확히 할 때 빛을 발합니다.
-- **직렬화를 피하라**: DTO나 엔티티(Entity)에는 사용하지 마세요. 반환 값(Return Value)으로만 사용하세요.
+## `orElse`와 `orElseGet`
+
+`orElse`의 인자는 Optional에 값이 있어도 먼저 평가된다. Database 조회나 비싼 객체 생성은 `orElseGet`으로 지연한다.
+
+```java
+Passenger passenger = passengerPort.findByExternalId(externalId)
+                                   .orElseGet(() -> passengerRegistration.register(externalId));
+```
+
+그러나 조회 후 생성은 동시 요청에서 중복 생성될 수 있다. Unique Constraint와 Upsert 또는 Transaction 재조회로 Race Condition을 처리해야 한다. `orElseGet`만으로 동시성 문제가 해결되지는 않는다.
+
+## 여러 Optional 후보 연결하기
+
+Java 9 이상의 `or`는 첫 번째 값이 없을 때만 다음 Supplier를 평가한다.
+
+```java
+public Optional<CenterPolicy> resolvePolicy(long centerId, Region region) {
+    return policyPort.findByCenterId(centerId)
+                     .or(() -> policyPort.findByRegion(region))
+                     .or(policyPort::findGlobalDefault);
+}
+```
+
+Fallback 우선순위가 업무 규칙이라면 Method 이름과 Test로 순서를 고정한다.
+
+## Optional Stream
+
+여러 객체에서 있을 수도 있는 값을 모을 때 `Optional::stream`이 유용하다.
+
+```java
+List<EmailAddress> recipients = passengers.stream()
+                                          .map(Passenger::notificationEmail)
+                                          .flatMap(Optional::stream)
+                                          .distinct()
+                                          .toList();
+```
+
+Stream 안에서 Repository를 호출하면 N+1 I/O가 생길 수 있다. 먼저 ID를 모아 Batch 조회하고 Memory에서 변환한다.
+
+## Side Effect 분기
+
+값 유무에 따른 Log 같은 선택적 Side Effect는 `ifPresentOrElse`로 표현할 수 있다. 핵심 Business Flow는 `Either`로 바꾸어 반환하는 편이 낫다.
+
+```java
+passengerPort.findById(passengerId)
+             .ifPresentOrElse(
+                 passenger -> auditLogger.found(passenger.getId()),
+                 () -> auditLogger.notFound(passengerId)
+             );
+```
+
+## Primitive Optional
+
+대량 숫자 Stream의 단일 결과에는 `OptionalInt`, `OptionalLong`, `OptionalDouble`이 Boxing을 줄인다.
+
+```java
+OptionalLong maximumDistance = drivings.stream()
+                                       .mapToLong(Driving::distanceMeters)
+                                       .max();
+```
+
+Domain API의 가독성이 더 중요한 일반적인 단일 값 조회에서는 Boxing 비용을 먼저 추측하지 말고 Profile 결과로 결정한다.
+
+## 자주 하는 실수
+
+- `Optional` Field, DTO Field 또는 Method Parameter를 만든다.
+- `Optional<List<T>>`와 `Optional<Map<K, V>>`를 반환한다.
+- `isPresent()` 후 `get()`으로 다시 명령형 분기를 만든다.
+- `orElse(expensiveCall())`로 값이 있어도 외부 호출을 실행한다.
+- `Optional`이 없음을 업무 Error와 구분하지 않는다.
+- `map` 안에서 `null`을 반환하거나 필수 Side Effect를 수행한다.
+- Optional Chain 안에서 Repository를 반복 호출한다.
+
+## 기억할 점
+
+`Optional`은 반환값의 부재를 표현하는 좁은 도구다. Collection, 업무 실패와 Patch 의미를 대신하지 않는다. `map`·`flatMap`·`or`로 값의 흐름을 표현하되, 계층 경계에서는 부재를 업무 Error 또는 빈 Collection으로 올바르게 변환해야 한다.
 
 # Reference
-- [Java SE 8 Optional Javadoc](https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html)
-- [Effective Java Item 55: 옵셔널 반환은 신중히 하라]
-- [Toss Tech One: Optional 제대로 활용하기]
+
+- [Java Optional](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html)
+- Effective Java Item 55: 옵셔널 반환은 신중히 하라

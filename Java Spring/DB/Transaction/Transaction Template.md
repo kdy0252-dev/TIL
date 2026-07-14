@@ -21,24 +21,26 @@ Transaction은 여러 Database 작업을 하나의 성공 또는 실패 단위�
 
 ```java
 @Service
-public class UserQueryService {
+public class PassengerQueryService {
 
     private final TransactionTemplate readOnlyTransaction;
-    private final UserRepository userRepository;
+    private final PassengerRepository passengerRepository;
 
-    public UserQueryService(
+    public PassengerQueryService(
             PlatformTransactionManager transactionManager,
-            UserRepository userRepository
+            PassengerRepository passengerRepository
     ) {
         this.readOnlyTransaction = new TransactionTemplate(transactionManager);
         this.readOnlyTransaction.setReadOnly(true);
-        this.userRepository = userRepository;
+        this.readOnlyTransaction.setTimeout(3);
+        this.passengerRepository = passengerRepository;
     }
 
-    public User findById(long id) {
+    public Either<PassengerError, Passenger> findById(long passengerId) {
         return readOnlyTransaction.execute(status ->
-            userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException(id))
+            passengerRepository.findById(passengerId)
+                               .map(Either::<PassengerError, Passenger>right)
+                               .orElseGet(() -> Either.left(new PassengerError.NotFound(passengerId)))
         );
     }
 }
@@ -90,12 +92,24 @@ public Receipt synchronizePayment(String paymentId) {
 대량 처리 전체를 하나의 Transaction으로 묶으면 Persistence Context가 커지고 하나의 실패가 전체 Rollback을 만든다. 항목마다 독립 실패가 허용된다면 반복 내부에서 경계를 나눌 수 있다.
 
 ```java
-for (ImportRow row : rows) {
-    try {
-        transactionTemplate.executeWithoutResult(status -> importOne(row));
-    } catch (DataIntegrityViolationException exception) {
-        failureRecorder.record(row, exception);
-    }
+List<ImportRowResult> results = rows.stream()
+                                    .map(row -> importInNewTransaction(row)
+                                        .fold(
+                                            error -> ImportRowResult.failed(row.lineNumber(), error),
+                                            imported -> ImportRowResult.succeeded(row.lineNumber(), imported.id())
+                                        ))
+                                    .toList();
+
+failureRecorder.recordAll(
+    results.stream()
+           .filter(ImportRowResult::failed)
+           .toList()
+);
+
+private Either<ImportRowError, ImportedPassenger> importInNewTransaction(ImportRow row) {
+    return Try.of(() -> requiresNewTransaction.execute(status -> importOne(row)))
+              .toEither()
+              .mapLeft(cause -> ImportRowError.from(row.lineNumber(), cause));
 }
 ```
 

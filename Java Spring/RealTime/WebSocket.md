@@ -1,134 +1,163 @@
 ---
-id: Spring Boot WebSocket
-started: 2025-05-14
+id: WebSocket
+started: 2025-05-09
 tags:
   - ✅DONE
-group:
-  - "[[Java Spring]]"
+group: "[[Java Spring RealTime]]"
 ---
-# WebSocket
-## WebSocket이란?
-WebSocket은 클라이언트와 서버 간의 실시간 양방향 통신을 가능하게 하는 통신 프로토콜이다. HTTP와 달리, WebSocket은 한 번 연결이 성립되면 지속적인 연결을 유지하며 데이터를 실시간으로 주고받을 수 있다.
-### WebSocket은 왜 사용할까?
-WebSocket은 실시간 데이터 전송이 필요한 다양한 애플리케이션에서 사용된다. 예를 들어, 온라인 게임, 채팅 애플리케이션, 주식 시세 표시, 실시간 협업 도구 등에서 WebSocket을 사용하여 데이터를 실시간으로 업데이트할 수 있다.
-### WebSocket의 장점과 단점
-**장점:**
-*   **실시간 양방향 통신**: 서버와 클라이언트가 실시간으로 데이터를 주고받을 수 있다.
-*   **낮은 지연 시간**: 지속적인 연결을 유지하므로 HTTP에 비해 지연 시간이 짧다.
-*   **서버 푸시**: 서버에서 클라이언트로 데이터를 푸시할 수 있다.
-*   **표준 프로토콜**: 대부분의 브라우저와 서버에서 지원하는 표준 프로토콜이다.
-**단점:**
-*   **HTTP에 비해 복잡한 설정**: HTTP에 비해 설정이 복잡할 수 있다.
-*   **연결 관리**: 연결 상태를 지속적으로 관리해야 한다.
-*   **확장성**: 많은 수의 연결을 처리하기 위해 확장성을 고려해야 한다.
-### WebSocket 사용 예시
-*   **온라인 게임**: 실시간으로 게임 상태를 업데이트하고 플레이어 간의 상호 작용을 처리한다.
-*   **채팅 애플리케이션**: 메시지를 실시간으로 주고받는다.
-*   **주식 시세 표시**: 주식 시세를 실시간으로 업데이트한다.
-*   **실시간 협업 도구**: 문서 편집, 화이트보드 등을 실시간으로 공유한다.
-## Java Spring WebSocket 구현 예시
-### 1. 의존성 추가
-Spring Boot 프로젝트에 `spring-boot-starter-websocket` 의존성을 추가해야 한다.
 
-```kotlin title="build.gradle.kts"
-dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-websocket")
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
+# Spring WebSocket
+
+WebSocket은 하나의 TCP Connection에서 Client와 Server가 양방향 Message를 주고받는 Protocol이다. HTTP Upgrade로 연결한 뒤에는 요청·응답이 아니라 장시간 Connection, Message 순서, Backpressure와 재연결을 직접 관리해야 한다.
+
+## 연결 수명
+
+```text
+HTTP Upgrade -> Authentication -> Session 등록
+-> Message 수신/검증/처리 -> Ping/Pong
+-> 정상 종료 또는 Timeout -> Session 제거
+```
+
+Load Balancer Idle Timeout보다 짧은 Heartbeat를 보내고, 배포 Drain 시 새 Connection을 막은 뒤 기존 Session에 재연결 신호를 보낸다.
+
+## Configuration
+
+```java
+@ConfigurationProperties(prefix = "application.websocket")
+public record WebSocketProperties(List<String> allowedOrigins, int maxMessageBytes) {
+    public WebSocketProperties {
+        allowedOrigins = List.copyOf(allowedOrigins);
+    }
 }
 ```
-### 2. WebSocket 설정
 
-```java title="WebSocketConfig.java"
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.socket.config.annotation.EnableWebSocket;
-import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
-import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
-
+```java
 @Configuration
 @EnableWebSocket
-public class WebSocketConfig implements WebSocketConfigurer {
+@RequiredArgsConstructor
+public class WebSocketConfiguration implements WebSocketConfigurer {
 
-    private final MyWebSocketHandler myWebSocketHandler;
-
-    public WebSocketConfig(MyWebSocketHandler myWebSocketHandler) {
-        this.myWebSocketHandler = myWebSocketHandler;
-    }
+    private final VehicleLocationWebSocketHandler handler;
+    private final AuthenticatedHandshakeInterceptor handshakeInterceptor;
+    private final WebSocketProperties properties;
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(myWebSocketHandler, "/ws").setAllowedOrigins("*");
+        registry.addHandler(handler, "/ws/vehicle-locations")
+                .addInterceptors(handshakeInterceptor)
+                .setAllowedOrigins(properties.allowedOrigins().toArray(String[]::new));
     }
 }
 ```
-*   `@EnableWebSocket` 어노테이션을 사용하여 WebSocket을 활성화한다.
-*   `WebSocketConfigurer` 인터페이스를 구현하여 WebSocket 핸들러를 등록한다.
-*   `addHandler()` 메서드를 사용하여 WebSocket 핸들러를 특정 URL에 매핑한다.
-*   `setAllowedOrigins()` 메서드를 사용하여 CORS 설정을 한다.
-### 3. WebSocket 핸들러 구현
 
-```java title="MyWebSocketHandler.java"
-import org.springframework.stereotype.Component;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.handler.TextWebSocketHandler;
+Production에서 `setAllowedOrigins("*")`를 사용하지 않는다. 인증 Cookie를 쓰는 Browser Connection은 Origin 검사가 CSWSH 방어선이 된다.
 
+## Typed Message
+
+```java
+public sealed interface ClientWebSocketMessage {
+
+    record SubscribeVehicle(long vehicleId, long afterSequence)
+        implements ClientWebSocketMessage {
+    }
+
+    record UnsubscribeVehicle(long vehicleId)
+        implements ClientWebSocketMessage {
+    }
+}
+
+public record WebSocketEnvelope<T>(
+    UUID messageId,
+    String type,
+    int schemaVersion,
+    T payload
+) {
+}
+```
+
+임의 문자열 Echo가 아니라 Type, Version과 Message ID가 있는 Protocol을 사용한다. 역직렬화 전에 최대 Byte를 검사하고 모르는 Version은 명시적 Error로 응답한다.
+
+## Handler
+
+```java
 @Component
-public class MyWebSocketHandler extends TextWebSocketHandler {
+@RequiredArgsConstructor
+public class VehicleLocationWebSocketHandler extends TextWebSocketHandler {
+
+    private final ObjectMapper objectMapper;
+    private final WebSocketMessageDecoder decoder;
+    private final VehicleSubscriptionService subscriptionService;
+    private final WebSocketSessionRegistry sessionRegistry;
 
     @Override
-    public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        String payload = message.getPayload();
-        System.out.println("Received message: " + payload);
-        session.sendMessage(new TextMessage("Server received: " + payload));
+    public void afterConnectionEstablished(WebSocketSession session) {
+        sessionRegistry.register(SessionContext.from(session));
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        decode(message)
+            .flatMap(clientMessage -> subscriptionService.handle(session.getId(), clientMessage))
+            .flatMap(response -> send(session, response))
+            .getOrElseThrow(WebSocketProtocolException::new);
+    }
+
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        sessionRegistry.remove(session.getId());
+    }
+
+    private Either<WebSocketError, ClientWebSocketMessage> decode(TextMessage message) {
+        return ValidationUtil.must(
+                                 message,
+                                 value -> value.getPayloadLength() <= decoder.maxMessageBytes(),
+                                 new WebSocketError.MessageTooLarge(message.getPayloadLength())
+                             )
+                             .toEither()
+                             .flatMap(decoder::decode);
+    }
+
+    private Either<WebSocketError, Void> send(
+        WebSocketSession session,
+        ServerWebSocketMessage response
+    ) {
+        return Try.run(() -> session.sendMessage(
+                      new TextMessage(objectMapper.writeValueAsBytes(response))))
+                  .toEither()
+                  .mapLeft(cause -> new WebSocketError.SendFailure(session.getId(), cause));
     }
 }
 ```
-*   `TextWebSocketHandler` 클래스를 상속받아 WebSocket 핸들러를 구현한다.
-*   `handleTextMessage()` 메서드를 오버라이드하여 클라이언트에서 받은 메시지를 처리한다.
-*   `session.sendMessage()` 메서드를 사용하여 클라이언트에 메시지를 보낸다.
-### 4. 클라이언트 구현 (JavaScript)
 
-```javascript title="client.js"
-const socket = new WebSocket("ws://localhost:8080/ws");
+Spring의 기본 Servlet WebSocket Session에 여러 Thread가 동시에 `sendMessage`하지 않게 Session별 직렬화 Queue 또는 `ConcurrentWebSocketSessionDecorator`를 사용한다. 느린 Client의 Pending Byte와 전송 시간을 제한한다.
 
-socket.onopen = () => {
-    console.log("Connected to WebSocket");
-    socket.send("Hello Server!");
-};
+## Broadcast와 Backpressure
 
-socket.onmessage = (event) => {
-    console.log("Received message: " + event.data);
-};
+모든 Session을 순회하며 무제한 Message를 쌓지 않는다.
 
-socket.onclose = () => {
-    console.log("Disconnected from WebSocket");
-};
-```
-*   `WebSocket` 객체를 사용하여 서버에 연결한다.
-*   `onopen` 이벤트 핸들러를 사용하여 연결 성공 시 메시지를 보낸다.
-*   `onmessage` 이벤트 핸들러를 사용하여 서버에서 받은 메시지를 처리한다.
-*   `onclose` 이벤트 핸들러를 사용하여 연결 종료 시 로그를 출력한다.
-### 사용 시 주의사항
-- **보안**: WebSocket 연결은 기본적으로 암호화되지 않으므로, WSS (WebSocket Secure)를 사용하여 암호화해야 한다.
-- **확장성**: 많은 수의 연결을 처리하기 위해 로드 밸런싱, 클러스터링 등의 기술을 적용해야 한다.
-- **에러 처리**: 연결 끊김, 메시지 손실 등의 에러를 처리하기 위한 로직을 구현해야 한다.
-- **메시지 형식**: 텍스트, 바이너리 등 다양한 메시지 형식을 지원하므로, 애플리케이션에 맞는 형식을 선택해야 한다.
-- **세션 관리**: 사용자 인증, 권한 부여 등을 위한 세션 관리 기능을 구현해야 한다.
-## Long Polling, AMQP와 비교
+- Topic/Vehicle별 Subscriber Index를 둔다.
+- Session별 Outbound Queue Byte 상한을 둔다.
+- 위치처럼 최신 값이 중요한 Data는 오래된 Pending Update를 덮어쓴다.
+- 결제·업무 Event처럼 Drop 불가 Data는 WebSocket이 아니라 Durable 조회 경로를 함께 제공한다.
+- Slow Consumer 수, Queue Byte와 Drop 수를 Metric으로 수집한다.
 
-| 기능     | WebSocket       | Long Polling          | AMQP             |
-| ------ | --------------- | --------------------- | ---------------- |
-| 통신 모델  | 양방향             | 단방향 (클라이언트 -> 서버)     | 양방향 (메시지 큐)      |
-| 실시간성   | 높음              | 중간                    | 높음               |
-| 서버 부하  | 높음 (지속적인 연결 유지) | 낮음 (이벤트 발생 시에만 응답)    | 중간 (메시지 큐)       |
-| 연결 유지  | 연결 유지 (지속적인 연결) | 연결 유지 (Timeout 시 재연결) | 연결 유지 (메시지 큐)    |
-| 구현 복잡도 | 높음              | 중간                    | 높음               |
-| 사용 사례  | 실시간 채팅, 게임      | 알림, 간단한 상태 업데이트       | 분산 시스템, 마이크로서비스  |
-| 장점     | 실시간 양방향 통신      | 서버 자원 효율성             | 확장성, 안정성         |
-| 단점     | 서버 부하, 확장성      | 지연 시간, 단방향 통신         | 복잡한 설정, 메시지 큐 관리 |
-WebSocket은 실시간 양방향 통신이 필요한 애플리케이션에 적합한 기술이다. 하지만 Long Polling이나 AMQP와 비교하여 장단점이 있으므로, 프로젝트의 요구사항에 따라 적절한 기술을 선택해야 한다.
+## 재연결
+
+Client는 Exponential Backoff와 Jitter로 재연결하고 마지막 처리 Sequence를 보낸다. Server가 Replay Buffer 범위 안이면 누락 Event를 재전송하고, 범위를 벗어나면 REST Snapshot을 다시 조회하도록 알린다.
+
+## Test
+
+- 인증·Origin이 잘못된 Handshake 거부
+- 잘못된 JSON, Type, Version과 초과 크기 Message 거부
+- 같은 Session의 Subscribe/Unsubscribe 멱등성
+- 느린 Client Queue 상한과 Drop Policy
+- Connection 종료 후 Registry 정리
+- 배포 Drain과 재연결 Sequence 복구
+
+## 기억할 점
+
+WebSocket은 Controller Method 하나가 아니라 Connection Lifecycle을 운영하는 기능이다. Typed Protocol, 인증, Origin, Session별 Backpressure, Heartbeat, 재연결과 Drain을 함께 설계해야 한다.
 
 # Reference
-[Spring Boot WebSocket](https://adjh54.tistory.com/573)
-[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
-[Spring WebSocket 공식 문서](https://docs.spring.io/spring-framework/reference/websocket.html)
+
+- [Spring WebSocket](https://docs.spring.io/spring-framework/reference/web/websocket.html)

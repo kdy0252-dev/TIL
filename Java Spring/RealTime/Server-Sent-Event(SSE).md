@@ -6,155 +6,185 @@ tags:
 group:
   - "[[Java Spring]]"
 ---
-# Server-Sent Events (SSE)
-## SSE란?
-Server-Sent Events (SSE)는 서버에서 클라이언트로 단방향으로 실시간 데이터 스트림을 전송하는 기술이다. HTTP 프로토콜을 기반으로 하며, 클라이언트는 SSE 엔드포인트에 연결을 유지하면서 서버에서 보내는 데이터를 실시간으로 수신한다.
-### SSE의 특징
-*   **단방향 통신**: 서버에서 클라이언트로만 데이터를 전송한다.
-*   **HTTP 기반**: 기존 HTTP 프로토콜을 사용하므로 별도의 프로토콜 설정이 필요 없다.
-*   **텍스트 기반**: 텍스트 형식으로 데이터를 전송하므로, 복잡한 데이터 구조를 표현하기 어렵다.
-*   **간단한 구현**: WebSocket에 비해 구현이 간단하다.
-### SSE는 언제 사용하면 좋을까?
-*   **실시간 데이터 스트리밍**: 서버에서 클라이언트로 실시간으로 업데이트되는 데이터를 전송해야 할 때 (예: 주식 시세, 뉴스 피드).
-*   **단방향 통신**: 서버에서 클라이언트로 데이터를 전송하는 것이 주 목적인 경우.
-*   **간단한 구현**: WebSocket과 같은 복잡한 기술이 필요하지 않은 경우.
-### Polling, Long Polling과 비교
 
-| 기능     | Polling                  | Long Polling          | SSE                     | WebSocket       |
-| ------ | ------------------------ | --------------------- | ----------------------- | --------------- |
-| 통신 방향  | 단방향 (클라이언트 -> 서버)        | 단방향 (클라이언트 -> 서버)     | 단방향 (서버 -> 클라이언트)       | 양방향             |
-| 실시간성   | 낮음 (주기적인 요청 필요)          | 중간 (이벤트 발생 시 응답)      | 높음 (실시간 데이터 스트리밍)       | 매우 높음           |
-| 서버 부하  | 높음 (주기적인 요청 처리)          | 낮음 (이벤트 발생 시에만 응답)    | 낮음 (HTTP 기반 효율적인 연결)    | 높음 (지속적인 연결 유지) |
-| 연결 유지  | 연결 없음 (매번 새로운 요청)        | 연결 유지 (Timeout 시 재연결) | 연결 유지 (HTTP 기반 지속적인 연결) | 연결 유지 (지속적인 연결) |
-| 구현 복잡도 | 낮음                       | 중간                    | 중간                      | 높음              |
-| 사용 사례  | 간단한 상태 확인, 주기적인 데이터 업데이트 | 채팅, 알림                | 실시간 데이터 스트리밍, 뉴스 피드     | 실시간 게임, 채팅      |
-### SSE 구현 시 주의사항
-*   **Connection 제한**: SSE는 HTTP 기반이므로, 브라우저의 Connection 제한에 영향을 받을 수 있다.
-*   **오류 처리**: 연결이 끊어질 경우, 클라이언트가 재연결을 시도하도록 해야 한다.
-*   **보안**: 인증 및 권한 부여를 통해 SSE 엔드포인트에 대한 접근을 제어해야 한다.
-*   **메시지 형식**: SSE는 텍스트 기반이므로, 복잡한 데이터 구조를 표현하기 어렵다.
-## Spring Boot SSE 구현 예시
-### 1. 의존성 추가
-Spring Boot 프로젝트에 `spring-boot-starter-webflux` 의존성이 추가되어 있어야 한다.
-```kotlin title="build.gradle.kts"
-dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
+# Server-Sent Events(SSE)
+
+SSE는 하나의 HTTP Response를 닫지 않고 Server가 Client로 Event를 계속 보내는 표준이다. Browser는 `text/event-stream` 응답을 읽고 연결이 끊기면 재연결한다. Client에서 Server로 명령도 보내야 한다면 일반 HTTP API를 함께 사용한다.
+
+## SSE Event 형식
+
+```text
+id: 18421
+event: vehicle-location-updated
+retry: 3000
+data: {"vehicleId":9102,"latitude":37.501,"longitude":127.039}
+
+```
+
+빈 줄 하나가 Event의 끝이다.
+
+- `id`: Client가 마지막으로 처리한 Event 위치다.
+- `event`: Client가 구독할 Event Type이다.
+- `data`: 실제 Payload다. 여러 줄도 가능하다.
+- `retry`: 재연결 대기 시간을 Millisecond로 제안한다.
+
+Browser는 재연결할 때 마지막 `id`를 `Last-Event-ID` Header로 보낸다. 따라서 업무상 유실이 허용되지 않으면 Server가 해당 ID 이후 Event를 Durable Store에서 Replay해야 한다.
+
+## 언제 선택하는가
+
+| 요구사항 | 적합한 방식 |
+| --- | --- |
+| Server → Browser 알림·상태 갱신 | SSE |
+| 빈번한 양방향 Message | WebSocket |
+| Reactive Backpressure를 포함한 Service 간 Stream | RSocket 또는 Broker |
+| 드물게 바뀌는 상태 | Conditional GET 또는 Polling |
+
+SSE는 “항상 WebSocket보다 가볍다”가 아니라 단방향 HTTP Stream이라는 단순성이 요구사항과 맞을 때 선택한다.
+
+## Production Architecture
+
+```text
+Domain Transaction -> Outbox -> Event Relay -> Durable Event Store
+                                          \-> Live Event Hub
+Browser -- Last-Event-ID --> SSE Controller -> Replay + Live Stream
+```
+
+Process Memory의 Sink만 사용하면 재시작 순간 Event가 사라지고 여러 Instance 사이에 Event가 공유되지 않는다. 실시간 전달과 복구 경로를 분리한다.
+
+## Typed Event
+
+```java
+public record VehicleLocationEvent(
+    long sequence,
+    long tenantId,
+    long vehicleId,
+    BigDecimal latitude,
+    BigDecimal longitude,
+    Instant occurredAt
+) {
+}
+
+public interface VehicleLocationEventQuery {
+
+    Flux<VehicleLocationEvent> findAfter(long tenantId, long sequenceExclusive);
+
+    Flux<VehicleLocationEvent> live(long tenantId);
 }
 ```
-### 2. Controller 구현
-#### WebFlux
-```java title="SseController.java(WebFlux)"
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.core.publisher.Sinks;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Controller;
-import java.time.Duration;
 
+Application Service는 연결 방식이 아니라 “어떤 Tenant가 어느 Sequence 이후 Event를 읽는가”만 표현한다.
+
+## Replay와 Live Stream 연결
+
+```java
+@Service
+@RequiredArgsConstructor
+public class VehicleLocationStreamService {
+
+    private static final Duration HEARTBEAT_INTERVAL = Duration.ofSeconds(15);
+
+    private final VehicleLocationEventQuery eventQuery;
+
+    public Flux<ServerSentEvent<VehicleLocationResponse>> stream(
+        long tenantId,
+        long afterSequence
+    ) {
+        Flux<ServerSentEvent<VehicleLocationResponse>> events = Flux.concat(
+                eventQuery.findAfter(tenantId, afterSequence),
+                eventQuery.live(tenantId)
+            )
+            .distinct(VehicleLocationEvent::sequence)
+            .map(VehicleLocationResponse::from)
+            .map(this::toServerSentEvent);
+
+        Flux<ServerSentEvent<VehicleLocationResponse>> heartbeats = Flux
+            .interval(HEARTBEAT_INTERVAL)
+            .map(ignored -> ServerSentEvent.<VehicleLocationResponse>builder()
+                .comment("heartbeat")
+                .build());
+
+        return Flux.merge(events, heartbeats);
+    }
+
+    private ServerSentEvent<VehicleLocationResponse> toServerSentEvent(
+        VehicleLocationResponse response
+    ) {
+        return ServerSentEvent.<VehicleLocationResponse>builder(response)
+            .id(Long.toString(response.sequence()))
+            .event("vehicle-location-updated")
+            .retry(Duration.ofSeconds(3))
+            .build();
+    }
+}
+```
+
+`distinct`는 Replay를 읽는 사이 Live Stream에 같은 Sequence가 도착하는 경계 중복을 제거한다. 실제 대규모 Stream에서는 무제한 중복 기억을 피하도록 Sequence 경계를 저장해 필터링하거나 Broker Offset으로 연결한다.
+
+## 인증된 Controller
+
+```java
 @RestController
-public class SseController {
-	
-    private final Sinks.Many<String> eventSink = Sinks.many().multicast().onBackpressureBuffer();
-	
-    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> streamEvents() {
-        return eventSink.asFlux().timeout(Duration.ofSeconds(30)); // 30초 Timeout
-    }
-	
-    @PostMapping("/events")
-    public Mono<Void> publishEvent(@RequestBody String event) {
-        eventSink.emitNext(event, Sinks.EmitFailureHandler.FAIL_FAST);
-        return Mono.empty();
-    }
-	
-    @Scheduled(fixedRate = 5000)
-    public void scheduledEvent() {
-        String event = "Scheduled Event: " + System.currentTimeMillis();
-        publishEvent(event).subscribe();
+@RequestMapping("/api/vehicle-locations")
+@RequiredArgsConstructor
+public class VehicleLocationSseController {
+
+    private final VehicleLocationStreamService streamService;
+
+    @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<VehicleLocationResponse>> stream(
+        @AuthenticationPrincipal AuthenticatedUser user,
+        @RequestHeader(name = "Last-Event-ID", defaultValue = "0") long afterSequence
+    ) {
+        return streamService.stream(user.tenantId(), afterSequence);
     }
 }
 ```
-#### Virtual Thread
-```java title="SseController.java(Virtual Thread)"
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+Tenant ID를 Query Parameter로 받지 않고 인증 Principal에서 가져온다. Browser `EventSource`는 임의 Authorization Header를 넣기 어려우므로 Same-Origin Session Cookie를 쓰거나 Header를 지원하는 Client를 선택한다.
 
-@RestController
-public class SseController {
-	
-    private final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
-	
-    @GetMapping("/stream")
-    public SseEmitter streamEvents() {
-        SseEmitter emitter = new SseEmitter(30000L); // 30초 Timeout
-		
-        virtualThreadExecutor.execute(() -> {
-            try {
-                for (int i = 0; i < 10; i++) {
-                    emitter.send("Event " + i, MediaType.TEXT_PLAIN);
-                    Thread.sleep(1000); // 1초 간격으로 이벤트 전송
-                }
-                emitter.complete();
-            } catch (IOException | InterruptedException e) {
-                emitter.completeWithError(e);
-            }
-        });
-		
-        return emitter;
-    }
-	
-    @PostMapping("/events")
-    public ResponseEntity<Void> publishEvent(@RequestBody String event) {
-        emitters.forEach(emitter -> {
-            virtualThreadExecutor.execute(() -> {
-                try {
-                    emitter.send(event, MediaType.TEXT_PLAIN);
-                } catch (IOException e) {
-                    emitter.completeWithError(e);
-                    emitters.remove(emitter);
-                }
-            });
-        });
-        return ResponseEntity.ok().build();
-    }
-	
-    @Scheduled(fixedRate = 5000)
-    public void scheduledEvent() {
-        String event = "Scheduled Event: " + System.currentTimeMillis();
-        // 필요한 경우, 이벤트를 SseEmitter를 통해 전송
-    }
-}
-```
-*   `Sinks.Many`를 사용하여 이벤트를 발행하고, `Flux`를 통해 클라이언트에게 이벤트를 스트리밍한다.
-*   `@GetMapping`의 `produces` 속성을 `MediaType.TEXT_EVENT_STREAM_VALUE`로 설정하여 Server-Sent Events (SSE) 형태로 데이터를 전송한다.
-*   `timeout` 메서드를 사용하여 30초 Timeout을 설정한다.
-*   `@Scheduled` 어노테이션을 사용하여 5초마다 이벤트를 발생시키는 예시를 추가했다.
-### 3. Client 구현 (JavaScript)
-```javascript title="client.js"
-const eventSource = new EventSource('/stream');
+## Browser Client
 
-eventSource.onmessage = (event) => {
-    console.log('Received event:', event.data);
+```javascript
+const source = new EventSource("/api/vehicle-locations", { withCredentials: true });
+
+source.addEventListener("vehicle-location-updated", event => {
+  const location = JSON.parse(event.data);
+  persistLastProcessedSequence(Number(event.lastEventId));
+  updateVehicleMarker(location);
+});
+
+source.onerror = () => {
+  showRealtimeConnectionState("reconnecting");
+  // EventSource가 retry 값과 Last-Event-ID를 사용해 자동 재연결한다.
 };
 
-eventSource.onerror = (error) => {
-    console.error('Error:', error);
-};
+window.addEventListener("beforeunload", () => source.close());
 ```
-*   `EventSource` 객체를 사용하여 SSE 엔드포인트에 연결한다.
-*   `onmessage` 이벤트 핸들러를 통해 서버에서 보내는 데이터를 수신한다.
-*   `onerror` 이벤트 핸들러를 통해 오류를 처리한다.
+
+## Backpressure와 느린 Client
+
+HTTP Socket에 쓸 수 있는 속도보다 Event가 빠르면 Memory가 계속 늘 수 있다.
+
+- 위치 정보처럼 최신 상태가 중요한 Stream은 Vehicle별 최신 값으로 합친다.
+- 모든 Event 보존이 필요하면 Browser Connection을 Queue로 사용하지 말고 Durable Store에서 Replay한다.
+- Connection별 Pending Byte와 최대 수명을 제한한다.
+- Proxy Buffering을 끄고 Idle Timeout보다 짧은 Heartbeat를 보낸다.
+- Active Connection, 전송 지연, Replay 수, Disconnect 원인과 Slow Consumer를 측정한다.
+
+## Test 순서
+
+1. `Last-Event-ID=0`에서 저장 Event가 Sequence 순서대로 내려오는지 검증한다.
+2. 중간 Sequence로 재연결했을 때 이후 Event만 Replay되는지 검증한다.
+3. Replay와 Live 경계의 중복이 제거되는지 검증한다.
+4. 다른 Tenant Event가 섞이지 않는지 검증한다.
+5. 느린 Client의 Buffer 한도와 Disconnect 정책을 부하 Test로 검증한다.
+6. Load Balancer를 통과한 Heartbeat와 Proxy Buffering 설정을 검증한다.
+
+## 기억할 점
+
+SSE의 핵심은 `Flux.interval()`로 문자열을 보내는 것이 아니다. Event ID, 재연결 Replay, 인증된 Tenant 경계, 느린 Client 정책과 Proxy 설정까지 포함해야 운영 가능한 Stream이 된다.
 
 # Reference
-https://velog.io/@black_han26/SSE-Server-Sent-Events
+
+- [Spring WebFlux](https://docs.spring.io/spring-framework/reference/web/webflux.html)
+- [HTML Living Standard - Server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html)

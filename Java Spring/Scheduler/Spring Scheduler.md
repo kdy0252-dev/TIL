@@ -5,155 +5,117 @@ tags:
   - ✅DONE
 group: "[[Java Spring]]"
 ---
+
 # Spring Scheduler
-## Spring Scheduler란?
-Spring Scheduler는 Spring 프레임워크에서 제공하는 스케줄링 기능이다. `@Scheduled` 어노테이션을 사용하여 메서드를 특정 시간 또는 간격으로 실행되도록 설정할 수 있다.
-### Spring Scheduler는 왜 사용할까?
-Spring Scheduler는 간단하고 편리하게 스케줄링 기능을 구현할 수 있도록 해준다. 별도의 스케줄링 라이브러리 없이 Spring 프레임워크 내에서 작업을 예약하고 실행할 수 있다.
-### Spring Scheduler의 장점과 단점
-**장점:**
-*   **간단한 설정**: `@Scheduled` 어노테이션을 사용하여 간단하게 스케줄링을 설정할 수 있다.
-*   **Spring 통합**: Spring 프레임워크와 완벽하게 통합되어 있어 Spring의 다양한 기능을 활용할 수 있다.
-*   **별도 라이브러리 불필요**: 별도의 스케줄링 라이브러리 없이 Spring 프레임워크 내에서 스케줄링을 구현할 수 있다.
-**단점:**
-*   **제한적인 기능**: Quartz와 같은 전문 스케줄러에 비해 기능이 제한적이다.
-*   **분산 환경 지원 미흡**: 분산 환경에서의 스케줄링을 지원하지 않는다.
-*   **복잡한 스케줄링 규칙**: 복잡한 스케줄링 규칙을 정의하기 어렵다.
-### Spring Scheduler 사용 예시
-*   **정기적인 데이터 동기화**: 매일 특정 시간에 데이터베이스를 동기화한다.
-*   **캐시 갱신**: 주기적으로 캐시를 갱신한다.
-*   **로그 정리**: 주기적으로 오래된 로그 파일을 삭제한다.
-*   **알림 발송**: 특정 조건이 충족되면 알림을 발송한다.
-## Spring Scheduler 구현
-### 1. Application 설정
-먼저, `@Scheduled` 어노테이션을 사용하기 위해서는 Application 클래스에서 `@EnableScheduling` 어노테이션을 설정해야 한다.
-```java
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+Spring Scheduler는 Application Process 안에서 정해진 주기로 Method를 호출한다. 간단하지만 실행 상태를 영속화하지 않고 여러 Pod가 모두 같은 Method를 실행한다. 따라서 “호출 시각”과 “업무 실행 보장”을 구분해야 한다.
+
+## fixedRate, fixedDelay, cron
+
+- `fixedRate`: 시작 시각 기준 주기다. 실행이 길면 겹칠 수 있다.
+- `fixedDelay`: 이전 실행 완료 후 다음 실행까지의 간격이다.
+- `cron`: 달력 시각 기준이다. Timezone을 반드시 명시한다.
+
+## 얇은 Scheduler Adapter
+
+```java
+@Component
+@RequiredArgsConstructor
+public class VehicleStatusReconciliationScheduler {
+
+    private final ReconcileVehicleStatusUseCase useCase;
+    private final Clock clock;
+
+    @Scheduled(
+        cron = "${application.scheduler.vehicle-reconciliation.cron}",
+        zone = "Asia/Seoul"
+    )
+    public void reconcile() {
+        ReconciliationWindow window = ReconciliationWindow.endingAt(clock.instant());
+
+        useCase.reconcile(window)
+            .peekLeft(error -> {
+                throw new VehicleReconciliationException(error);
+            });
+    }
+}
+```
+
+Scheduler는 시간 계산과 Use Case 호출만 한다. 조회 Pagination, 외부 API Retry, 상태 전이와 Transaction은 Application 내부 Service로 위임한다.
+
+## 여러 Pod에서 한 번만 실행하기
+
+`@Scheduled` 자체에는 분산 Lock이 없다. 선택지는 세 가지다.
+
+1. 모든 Pod가 실행해도 되도록 업무를 Idempotent하게 만든다.
+2. DB/Redis 기반 Lease를 얻은 Instance만 실행한다.
+3. 영속 Schedule이 필요하면 Quartz, Kubernetes CronJob 또는 Workflow Engine을 사용한다.
+
+Lock만 믿지 말고 업무 Key에 Unique Constraint나 처리 완료 상태를 둔다. Lock 만료 직전 긴 작업이 겹칠 수 있기 때문이다.
+
+```java
+@Service
+@RequiredArgsConstructor
+public class VehicleStatusReconciliationService
+    implements ReconcileVehicleStatusUseCase {
+
+    private final ReconciliationLeasePort leasePort;
+    private final VehicleStatusReconciler reconciler;
+
+    @Override
+    public Either<ReconciliationError, ReconciliationSummary> reconcile(
+        ReconciliationWindow window
+    ) {
+        return leasePort.acquire("vehicle-status-reconciliation", Duration.ofMinutes(5))
+            .toEither(() -> new ReconciliationError.AlreadyRunning(window))
+            .flatMap(lease -> Try.withResources(() -> lease)
+                .of(ignored -> reconciler.reconcile(window))
+                .toEither()
+                .mapLeft(cause -> new ReconciliationError.ExecutionFailure(window, cause)))
+            .flatMap(Function.identity());
+    }
+}
+```
+
+Lease는 `AutoCloseable`로 감싸 성공·실패 모두 해제한다. Lease Store 장애 시 실행을 건너뛸지 결정하고 Alert한다.
+
+## Thread Pool
+
+기본 Scheduler Thread 하나에서 느린 Job이 다른 Job을 막을 수 있다.
+
+```java
+@Configuration
 @EnableScheduling
-@SpringBootApplication
-public class SpringBootApplication {
-	public static void main(String[] args) {
-    	SpringApplication.run(SpringBootApplication.class, args);
-	}
-}
-```
-### 2. Scheduler 구현
-Scheduler를 구현할 때 스프링 빈에 컴포넌트가 등록되어야 한다. 아래 코드는 60초마다 작업이 실행되는 예시이다.
-```java
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+public class SchedulingConfiguration implements SchedulingConfigurer {
 
-@Component
-@RequiredArgsConstructor
-@Slf4j
-public class SchedulerConfiguration {
-    @Scheduled(fixedDelay = 60000)
-    public void run() {
-	    ...
+    @Override
+    public void configureTasks(ScheduledTaskRegistrar registrar) {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(4);
+        scheduler.setThreadNamePrefix("application-scheduler-");
+        scheduler.setWaitForTasksToCompleteOnShutdown(true);
+        scheduler.setAwaitTerminationSeconds(30);
+        scheduler.initialize();
+        registrar.setTaskScheduler(scheduler);
     }
 }
 ```
-### 3. @Scheduled 속성
-*   `fixedRate`: 작업 수행 시간과 상관없이 일정 주기마다 메서드를 호출한다 (ms 단위).
-*   `fixedDelay`: 작업을 마친 후부터 타이머가 실행되어 메서드를 호출한다 (ms 단위).
-*   `initialDelay`: 초기 지연 시간을 설정한다 (ms 단위).
-*   `cron`: Cron 표현식을 사용하여 작업을 예약한다.
-### 4. Cron 표현식
-![[Spring Scheduler - 01.png]]
-#### Cron Field 값으로 올 수 있는 것들
-![[Spring Scheduler - 02.png]]
-#### 정규표현식
-![[Spring Scheduler - 03.png]]
-#### 사용 예시
-*   `0 0/5 * * * ?`: 매 5분마다 실행
-*   `0 0 0/1 * * ?`: 매 1시간마다 실행
-*   `0 0 12 * * ?`: 매일 낮 12시에
-*   `0 15 10 ? * *`: 매일 오전 10:15분에 실행
-*   `0 15 10 * * ?`: 매일 오전 10:15분에 실행
-*   `0 * 14 * * ?`: 매일 오후 2:00에 시작해서 매분마다 실행하고 2:59분에 종료
-*   `0 0/5 14,18 * * ?`: 매일 오후 2:00에 시작해서 5분마다 실행되어 2:55에 끝나고, 6:00에 시작하여 5분마다 실행되어 6:55에 종료
-*   `0 0-5 14 * * ?`: 매일 오후 2:00에 시작하여 매분마다 실행하고 오후 2:05분에 종료
-*   `0 10,44 14 ? 3 WED`: 3월 동안 오후 2:10과 2:44 실행
-*   `0 15 10 ? * MON-FRI`: 주중 오전 10:15분에
-*   `0 15 10 15 * ?`: 매달 15일 오전 10:15에
-*   `0 15 10 L * ?`: 매월 말일 오전 10:15에
-*   `0 15 10 ? * 6L`: 매월 마지막 금요일 오전 10:15에
-*   `0 15 10 ? * 6#3`: 매월 3째주 금요일 오전 10:15에
-### 5. Example
-class 단은 생략하였다.
-```java
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 
-@Slf4j
-public class ExampleScheduler {
-	@Scheduled(fixedRate = 5000, initialDelay = 3000)
-	public void run() {
-		log.info("Scheduler 실행");
-	}
-}
-```
-### 6. Application.yaml 설정
-`application.yaml` 파일에서 설정을 통해 스케줄러를 동작시킬 수도 있다.
-```yaml title=application.yaml
-schedule:
-  cron: 0 0 0 * * *
-  use: true
-```
-#### Use Case
-```java
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+Pool을 키운다고 동일 Job의 중복 실행 문제가 해결되지는 않는다. DB Connection과 외부 API 허용량에 맞춰 크기를 정한다.
 
-@Component
-@Slf4j
-@RequiredArgsConstructor
-public class CronTable {
-    private final JobService jobService;
-    
-    @Value("${schedule.use}")
-    private boolean useSchedule;
-    
-    @Scheduled(cron = "${schedule.cron}")
-    public void mainJob() {
-        try {
-            if (useSchedule) {
-                jobService.run();
-            }
-        } catch (InterruptedException e) {
-            log.info("* Thread가 강제 종료되었습니다. Message: {}", e.getMessage());
-        } catch (Exception e) {
-            log.info("* Batch 시스템이 예기치 않게 종료되었습니다. Message: {}", e.getMessage());
-        }
-    }
-}
-```
-## Spring Scheduler와 다른 스케줄링 기술 비교
+## 운영과 Test
 
-| 기능       | Spring Scheduler             | Quartz                      | ScheduledExecutorService    |
-| -------- | ---------------------------- | --------------------------- | --------------------------- |
-| 복잡한 스케줄링 | 지원 (Cron 표현식)                | 지원 (Cron 표현식)               | 제한적 (fixedRate, fixedDelay) |
-| 작업 관리    | @Scheduled 어노테이션             | Job, JobDetail, Trigger     | Runnable, Callable          |
-| 분산 환경 지원 | 지원 안 함                       | 지원 (Clustering)             | 지원 안 함                      |
-| 영속성      | 지원 안 함                       | 지원 (JobStore)               | 지원 안 함                      |
-| 유연성      | 중간                           | 높음                          | 낮음                          |
-| 설정       | 간단함                          | 복잡함                         | 간단함                         |
-| 사용 사례    | 간단한 스케줄링, Spring Boot 애플리케이션 | 복잡한 스케줄링, 분산 환경, 영속적인 작업 관리 | 간단한 스케줄링, 스레드 풀 기반 작업 실행    |
-### 사용 시 주의사항
-*   **스레드 풀 설정**: 스케줄러가 사용하는 스레드 풀 크기를 적절하게 설정해야 한다.
-*   **예외 처리**: 작업 실행 중 예외가 발생하면 스케줄러가 멈추지 않도록 예외 처리를 해야 한다.
-*   **정확성**: Spring Scheduler는 정확한 시간에 작업을 실행하는 것을 보장하지 않는다.
+- 마지막 시작·성공 시각, 실행 시간, 처리 수, 실패 원인을 Metric으로 남긴다.
+- Clock을 주입해 날짜 경계와 DST를 Test한다.
+- 외부 호출에는 Timeout을 둔다.
+- 실패를 `log.info`만 하고 삼키지 말고 Alert 가능한 Error로 만든다.
+- 배포 종료 시 새 작업을 받지 않고 진행 중 작업을 Drain한다.
+- Scheduler Adapter 단위 Test와 실제 Scheduling을 확인하는 얇은 통합 Test를 분리한다.
 
-Spring Scheduler는 간단하고 편리하게 스케줄링 기능을 구현할 수 있는 기술이다. 하지만 Quartz와 같은 전문 스케줄러에 비해 기능이 제한적이므로, 프로젝트의 요구사항에 따라 적절한 기술을 선택해야 한다.
+## 기억할 점
+
+`@Scheduled`는 Method를 호출할 뿐이다. 중복 방지, 재시도, 실행 이력과 복구가 필요하면 Application 설계나 더 적합한 Scheduler가 책임져야 한다.
 
 # Reference
-[Spring Scheduling Tasks](https://spring.io/guides/gs/scheduling-tasks/)
-[Spring @Scheduled Annotation](https://www.baeldung.com/spring-scheduled-tasks)
+
+- [Spring Task Execution and Scheduling](https://docs.spring.io/spring-framework/reference/integration/scheduling.html)

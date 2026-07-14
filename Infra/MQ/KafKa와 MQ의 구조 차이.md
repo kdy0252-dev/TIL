@@ -88,11 +88,16 @@ public class RabbitConfig {
     @Bean public Binding bindSms() { return BindingBuilder.bind(smsQueue()).to(orderExchange()); }
 }
 
-@Service
-public class RabbitConsumer {
+@Component
+@RequiredArgsConstructor
+public class BookingNotificationConsumer {
+
+    private final SendBookingNotificationUseCase useCase;
+
     @RabbitListener(queues = "sms.queue")
-    public void sendSms(OrderMsg msg) {
-        System.out.println("문자 발송: " + msg.getId());
+    public void sendNotification(BookingConfirmedEvent event) {
+        useCase.send(BookingNotificationCommand.from(event))
+            .getOrElseThrow(NotificationConsumeException::new);
     }
 }
 ```
@@ -101,32 +106,38 @@ public class RabbitConsumer {
 "주문 이벤트를 로그성으로 저장하고, 여러 컨슈머 그룹이 각자의 속도로 처리"
 
 ```java
-// Producer
 @Service
-public class KafkaProducer {
-    @Autowired private KafkaTemplate<String, String> kafkaTemplate;
+@RequiredArgsConstructor
+public class BookingEventPublisher {
 
-    public void sendOrder(OrderMsg msg) {
-        // partition key로 userId 사용 -> 동일 유저 주문은 순서 보장
-        kafkaTemplate.send("order-events", msg.getUserId(), json(msg));
+    private final KafkaTemplate<String, BookingConfirmedEvent> kafkaTemplate;
+
+    public CompletableFuture<SendResult<String, BookingConfirmedEvent>> publish(
+        BookingConfirmedEvent event
+    ) {
+        return kafkaTemplate.send(
+            "booking-confirmed.v1",
+            Long.toString(event.bookingId()),
+            event
+        );
     }
 }
 
-// Consumer
-@Service
-public class KafkaConsumer {
-    // Group ID가 다르면 동일한 메시지를 각각 다 받을 수 있음 (Pub/Sub)
-    @KafkaListener(topics = "order-events", groupId = "analytics-group")
-    public void analyze(String msg) {
-        // 데이터 분석 로직 (느려도 상관 없음)
-    }
+@Component
+@RequiredArgsConstructor
+public class BookingProjectionConsumer {
 
-    @KafkaListener(topics = "order-events", groupId = "notification-group")
-    public void notify(String msg) {
-        // 실시간 알림 로직 (빨라야 함)
+    private final UpdateBookingProjectionUseCase useCase;
+
+    @KafkaListener(topics = "booking-confirmed.v1", groupId = "booking-projection")
+    public void project(BookingConfirmedEvent event) {
+        useCase.update(BookingProjectionCommand.from(event))
+            .getOrElseThrow(BookingProjectionException::new);
     }
 }
 ```
+
+Producer는 Booking ID를 Partition Key로 사용해 같은 Booking의 순서를 유지한다. Consumer는 중복 전달을 고려해 Event ID를 기준으로 멱등 처리하고, Retry 소진 후 DLT와 운영 Alert로 연결한다.
 
 ---
 

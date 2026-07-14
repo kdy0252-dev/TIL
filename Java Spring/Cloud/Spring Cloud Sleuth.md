@@ -6,116 +6,136 @@ tags:
 group:
   - "[[Java Spring Cloud]]"
 ---
-# Spring Cloud Sleuth (Micrometer Tracing)
 
-## 1. 개요 (Overview)
-**Spring Cloud Sleuth**는 분산 시스템 환경(MSA)에서 **분산 추적(Distributed Tracing)** 을 구현해주는 라이브러리입니다.
-하나의 사용자 요청이 여러 마이크로서비스를 거쳐 처리될 때, 로그에 고유한 ID(Trace ID)를 남겨서 전체 흐름을 연결하고 병목 구간을 파악할 수 있게 해줍니다.
+# Spring Cloud Sleuth에서 Micrometer Tracing으로
 
-> **[IMPORTANT]**
-> Spring Boot 3.x / Spring Cloud 2022.0.0 버전부터 **Spring Cloud Sleuth** 프로젝트는 종료되었으며, 그 기능은 **Micrometer Tracing**으로 이관되었습니다.
-> 이 문서는 Sleuth의 개념을 설명하되, 최신 환경을 위해 Micrometer Tracing 마이그레이션 내용도 포함합니다.
+Spring Cloud Sleuth의 기능은 Spring Boot 3 세대부터 Micrometer Tracing으로 이동했다. 새 Application은 Sleuth Starter가 아니라 Micrometer Observation·Tracing과 Brave 또는 OpenTelemetry Bridge를 사용한다.
 
----
+## Trace와 Span
 
-## 2. 핵심 개념 (Core Concepts)
+- **Trace**: 한 요청이 여러 Service를 거치는 전체 흐름이다.
+- **Span**: HTTP 호출, Database Query와 업무 단계 같은 하나의 작업 구간이다.
+- **Trace ID**: 같은 Trace의 모든 Span이 공유한다.
+- **Span ID**: 각 Span을 구분한다.
+- **Context Propagation**: HTTP·Message Header로 Trace Context를 다음 Process에 전달한다.
 
-### 2.1 Trace & Span (Dapper 논문 기반)
-Google Dapper 논문에서 유래한 용어를 사용합니다.
-- **Trace (트레이스)**: 클라이언트의 최초 요청부터 마지막 응답까지의 전체 워크플로우를 의미합니다. 전체 여정동안 변하지 않는 유일한 **Trace ID**를 가집니다.
-- **Span (스팬)**: Trace 내에서 수행되는 각각의 작업 단위(예: A 서비스 호출, DB 쿼리 등)입니다. 각 Span은 고유한 **Span ID**를 가지며, 부모 Span ID를 참조하여 트리 구조를 형성합니다.
+Log의 Trace ID는 검색 연결점이고 Trace Backend의 Span은 시간·부모 관계·Tag와 Error를 보존한다. 민감 정보나 무제한 Cardinality의 ID를 Tag로 넣으면 안 된다.
 
-### 2.2 로그 포맷팅 (Log Correlation)
-Sleuth는 SLF4J의 MDC(Mapped Diagnostic Context) 기능을 사용하여 로그에 자동으로 Trace ID와 Span ID를 주입합니다.
-- 형식: `[Service-Name, Trace-ID, Span-ID, Exportable]`
-- 예: `[order-service, 64f1d5..., 3a1b2c..., true] Order created successfully.`
-- 이 로그만 수집하면 ELK 스택(Logstash -> Elasticsearch)에서 Trace ID로 검색하여 전체 요청 흐름을 한눈에 볼 수 있습니다.
+## 의존성
 
-### 2.3 Context Propagation
-HTTP(RestTemplate, Feign)나 Messaging(Kafka)을 통해 다른 서비스로 요청이 넘어갈 때, Sleuth는 필터나 인터셉터를 통해 헤더에 `X-B3-TraceId`, `X-B3-SpanId` 등을 자동으로 주입하여 ID를 전파(Propagation)합니다.
+Brave 또는 OpenTelemetry 중 하나의 Bridge를 선택하고 Exporter를 추가한다. Version은 Spring Boot Dependency Management에 맡긴다.
 
----
-
-## 3. Zipkin 연동
-Sleuth가 로그에 ID를 남겨주는 역할이라면, **Zipkin**은 이 데이터를 수집, 저장하고 시각화해주는 UI 서버입니다.
-- **Architecture**: App -> (Reporter) -> Zipkin Server -> (Storage: ES/MySQL) -> Zipkin UI
-- 각 Span의 시작과 끝 시간(Latency)을 기록하여 폭포수 차트(Waterfall Chart)로 보여줍니다. 어디서 시간이 오래 걸렸는지 시각적으로 디버깅할 수 있습니다.
-
----
-
-## 4. Spring Boot 3 (Micrometer Tracing) 마이그레이션
-
-Spring Boot 3에서는 Sleuth 대신 Micrometer Tracing을 사용해야 합니다.
-
-### 4.1 의존성 변경
-
-**Before (Sleuth)**
 ```groovy
-implementation 'org.springframework.cloud:spring-cloud-starter-sleuth'
-implementation 'org.springframework.cloud:spring-cloud-sleuth-zipkin'
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+}
 ```
 
-**After (Micrometer Tracing)**
-```groovy
-// 1. Micrometer Tracing Core
-implementation 'io.micrometer:micrometer-tracing-bridge-brave' // 또는 otel
+## 설정
 
-// 2. Zipkin Reporter
-implementation 'io.zipkin.reporter2:zipkin-reporter-brave'
-```
-
-### 4.2 설정 (application.yml)
 ```yaml
 management:
   tracing:
     sampling:
-      probability: 1.0 # 100% 샘플링 (모든 요청 추적 - 개발용)
-  zipkin:
+      probability: 0.1
+  otlp:
     tracing:
-      endpoint: "http://localhost:9411/api/v2/spans"
+      endpoint: ${OTLP_TRACING_ENDPOINT}
 ```
 
-### 4.3 예제 코드 (Custom Span)
-비즈니스 로직 내에서 특정 구간을 별도 Span으로 기록하고 싶을 때 사용합니다.
+Production에서 100% Sampling을 기본값으로 두면 비용과 저장량이 급증할 수 있다. 오류·고지연 Trace를 더 보존하려면 Backend와 SDK가 지원하는 Tail Sampling 정책을 검토한다.
+
+## Observation API를 우선한다
+
+Metric과 Trace를 같은 계측 지점에서 만들려면 `ObservationRegistry`를 사용한다. Lifecycle을 직접 `start/end`하지 않아 Span 누락을 줄인다.
 
 ```java
 @Service
 @RequiredArgsConstructor
-public class OrderService {
-    
-    // Tracer 주입 (Micrometer Tracing)
-    private final Tracer tracer;
+public class FareCalculationService {
 
-    public void processOrder() {
-        // 새로운 Span 시작
-        Span newSpan = tracer.nextSpan().name("calculate-tax");
-        
-        try (Tracer.SpanInScope ws = tracer.withSpan(newSpan.start())) {
-            // 태그 추가
-            newSpan.tag("tax.region", "KR");
-            
-            // 실제 로직...
-            Thread.sleep(100);
-            
-        } catch (InterruptedException e) {
-            newSpan.error(e);
-        } finally {
-            newSpan.end(); // 반드시 종료
-        }
+    private final ObservationRegistry observationRegistry;
+    private final FarePolicy farePolicy;
+
+    public Fare calculate(FareContext context) {
+        return Observation.createNotStarted("fare.calculate", observationRegistry)
+                          .lowCardinalityKeyValue("fare.type", context.fareType().name())
+                          .observe(() -> farePolicy.calculate(context));
     }
 }
 ```
 
----
+`bookingId`, Email과 전체 URL처럼 값 종류가 계속 늘어나는 값은 Low-cardinality Tag에 넣지 않는다. 필요하면 Log Field나 Trace Event에 제한적으로 기록하고 개인정보 정책을 적용한다.
 
-## 5. 결론 및 요약
-- **분산 추적의 필요성**: MSA에서는 로그가 파편화되어 있어 문제 추적이 어렵습니다. Trace ID 연결이 필수적입니다.
-- **Sleuth의 역할**: ID 생성, 로그 주입(MDC), 컨텍스트 전파(Header Injection).
-- **Zipkin의 역할**: 데이터 수집 및 시각화.
-- **최신 동향**: Spring Boot 3부터는 `Micrometer Tracing` + `Brave`(또는 OpenTelemetry) 조합으로 표준화되었습니다.
+## Error와 결과 관찰
+
+```java
+public Either<PaymentError, PaymentApproval> approve(PaymentRequest request) {
+    return Observation.createNotStarted("payment.approve", observationRegistry)
+                      .lowCardinalityKeyValue("provider", providerName)
+                      .observe(() -> Try.of(() -> paymentClient.approve(mapper.toProviderRequest(request)))
+                                        .map(mapper::toApproval)
+                                        .toEither()
+                                        .mapLeft(cause -> new PaymentError.ProviderFailure(request.paymentId(), cause))
+                                        .peekLeft(error -> Optional.ofNullable(Observation.currentObservation())
+                                                                   .ifPresent(current -> current.error(error.cause()))));
+}
+```
+
+`observe`가 성공과 실패 경로 모두에서 Observation을 종료한다. Provider Transaction ID처럼 값 종류가 무제한인 식별자는 Metric Tag가 아니라 보안 정책을 적용한 구조화 Log 또는 Trace Event로 남긴다.
+
+## HTTP와 Kafka Context 전파
+
+Spring이 관리하는 `RestClient`, `WebClient`, Kafka Template과 Listener Container를 Builder·Auto Configuration을 통해 사용하면 Observation Interceptor가 Context를 전파한다. 직접 Client를 `new`로 만들거나 Thread Pool에 Runnable만 넘기면 Context가 끊길 수 있다.
+
+비동기 Executor에는 Context Propagation을 적용한다.
+
+```java
+@Bean
+TaskDecorator contextPropagatingTaskDecorator() {
+    return new ContextPropagatingTaskDecorator();
+}
+
+@Bean
+ThreadPoolTaskExecutor applicationExecutor(TaskDecorator taskDecorator) {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(8);
+    executor.setMaxPoolSize(32);
+    executor.setQueueCapacity(500);
+    executor.setTaskDecorator(taskDecorator);
+    executor.setThreadNamePrefix("application-");
+    executor.initialize();
+    return executor;
+}
+```
+
+Executor Queue, Rejection과 Shutdown 정책도 함께 설정한다. Context 전파는 무제한 Async 작업을 안전하게 만들어 주는 기능이 아니다.
+
+## Baggage
+
+Baggage는 Trace와 함께 전파되는 작은 Context 값이다. Tenant ID 같은 값을 무조건 Baggage에 넣으면 모든 Network 요청과 Log에 퍼질 수 있다.
+
+- 필요한 Service만 읽는 값인지 확인한다.
+- 크기와 개수를 제한한다.
+- 인증 Token과 개인정보를 넣지 않는다.
+- 신뢰 경계를 넘을 때 허용 목록으로 필터링한다.
+
+## 운영 Checklist
+
+- Trace Exporter 장애가 업무 요청을 막지 않는가?
+- Sampling 비율과 저장 Retention이 비용 Budget 안인가?
+- HTTP·Kafka·Executor 경계에서 Parent-Child 관계가 이어지는가?
+- Error Span에 Stack과 업무 Error Code가 기록되는가?
+- Tag Cardinality와 개인정보를 정기적으로 검사하는가?
+- Trace ID가 구조화 Log에 포함되는가?
+
+## 기억할 점
+
+분산 추적은 Span을 많이 만드는 일이 아니다. 자동 계측을 기본으로 사용하고, 업무 병목 구간에 낮은 Cardinality의 의미 있는 Observation을 추가하며, Context 전파·Sampling·민감 정보와 Export 실패를 운영 정책으로 관리해야 한다.
 
 # Reference
-- [Spring Cloud Sleuth Reference (Deprecated)](https://docs.spring.io/spring-cloud-sleuth/docs/current/reference/html/)
-- [Micrometer Tracing Documentation](https://micrometer.io/docs/tracing)
-- [Baeldung - Migrating from Sleuth to Micrometer](https://www.baeldung.com/spring-boot-3-migration)
-```
+
+- [Micrometer Tracing](https://docs.micrometer.io/tracing/reference/)
+- [Spring Boot Observability](https://docs.spring.io/spring-boot/reference/actuator/observability.html)

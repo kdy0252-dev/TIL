@@ -54,24 +54,23 @@ spring:
 ### 3.2 Producer 구현
 
 ```java
-@Service
+@Component
 @RequiredArgsConstructor
-@Slf4j
-public class KafkaProducerService {
+public class BookingEventKafkaAdapter implements PublishBookingEventPort {
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, BookingEvent> kafkaTemplate;
 
-    public void sendMessage(String topic, String key, String message) {
-        // 비동기 전송
-        CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, key, message);
-
-        future.whenComplete((result, ex) -> {
-            if (ex == null) {
-                log.info("Sent message to {} with offset {}", topic, result.getRecordMetadata().offset());
-            } else {
-                log.error("Failed to send message", ex);
-            }
-        });
+    @Override
+    public CompletionStage<Either<BookingEventError, PublishedBookingEvent>> publish(BookingEvent event) {
+        return kafkaTemplate.send("booking-events", event.bookingId().toString(), event)
+                            .thenApply(result -> Either.right(new PublishedBookingEvent(
+                                event.eventId(),
+                                result.getRecordMetadata().partition(),
+                                result.getRecordMetadata().offset()
+                            )))
+                            .exceptionally(cause -> Either.left(
+                                new BookingEventError.PublishFailure(event.eventId(), unwrap(cause))
+                            ));
     }
 }
 ```
@@ -80,28 +79,19 @@ public class KafkaProducerService {
 
 ```java
 @Component
-@Slf4j
-public class KafkaConsumerService {
+@RequiredArgsConstructor
+public class BookingEventKafkaConsumer {
 
-    // concurrency = "3": 쓰레드 3개가 돌면서 파티션을 나눠서 처리
-    @KafkaListener(topics = "order-events", groupId = "order-group", concurrency = "3")
-    public void listen(ConsumerRecord<String, String> record, Acknowledgment ack) {
-        log.info("Received Message: {}", record.value());
-        
-        try {
-            processOrder(record.value());
-            ack.acknowledge(); // 수동 커밋 (처리가 성공했을 때만)
-        } catch (Exception e) {
-            log.error("Error processing message", e);
-            throw e; // 에러를 던져야 ErrorHandler가 잡아서 재시도하거나 DLQ로 보냄
-        }
-    }
+    private final ProcessBookingEventUseCase useCase;
 
-    private void processOrder(String orderJson) {
-        // 비즈니스 로직...
-        if (orderJson.contains("fail")) {
-            throw new RuntimeException("Simulated Failure");
-        }
+    @KafkaListener(
+        topics = "booking-events",
+        groupId = "booking-projection",
+        concurrency = "3"
+    )
+    public void listen(ConsumerRecord<String, BookingEvent> record) {
+        useCase.process(BookingEventEnvelope.from(record))
+               .getOrElseThrow(BookingEventProcessingException::new);
     }
 }
 ```
@@ -112,15 +102,20 @@ Spring Boot 2.5+ 부터는 `CommonErrorHandler`를 사용합니다.
 ```java
 @Bean
 public CommonErrorHandler errorHandler(KafkaTemplate<Object, Object> template) {
-    // 1. 실패 시 DLQ로 발행하는 Recoverer
-    DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(template);
-    
-    // 2. 3번 재시도 후(1초 간격) 복구(DLQ 전송)하는 에러 핸들러
-    DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 3));
-    
-    // 특정 예외는 재시도 없이 바로 DLQ로
-    errorHandler.addNotRetryableExceptions(IllegalArgumentException.class);
-    
+    DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
+        template,
+        (record, cause) -> new TopicPartition(record.topic() + ".DLT", record.partition())
+    );
+    ExponentialBackOffWithMaxRetries backOff = new ExponentialBackOffWithMaxRetries(3);
+    backOff.setInitialInterval(500L);
+    backOff.setMultiplier(2.0);
+    backOff.setMaxInterval(5_000L);
+
+    DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, backOff);
+    errorHandler.addNotRetryableExceptions(
+        BookingEventSchemaException.class,
+        BookingEventValidationException.class
+    );
     return errorHandler;
 }
 ```

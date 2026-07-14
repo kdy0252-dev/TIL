@@ -71,16 +71,26 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
-@Slf4j
-public class SampleScheduler {
+@RequiredArgsConstructor
+public class SettlementReconciliationScheduler {
 
-    @Scheduled(fixedRate = 5000)
-    @SchedulerLock(name = "sampleSchedulerLock", lockAtLeastFor = "3s", lockAtMostFor = "10s")
-    public void run() {
-        log.info("SampleScheduler executed at " + new java.util.Date());
+    private final ReconcileSettlementUseCase useCase;
+    private final Clock clock;
+
+    @Scheduled(cron = "${application.scheduler.settlement-reconciliation.cron}", zone = "Asia/Seoul")
+    @SchedulerLock(
+        name = "settlement-reconciliation",
+        lockAtLeastFor = "30s",
+        lockAtMostFor = "10m"
+    )
+    public void reconcile() {
+        useCase.reconcile(ReconciliationWindow.endingAt(clock.instant()))
+            .getOrElseThrow(SettlementReconciliationException::new);
     }
 }
 ```
+
+Scheduler는 시간 경계와 Use Case 호출만 담당한다. `lockAtMostFor`는 정상 실행 최대 시간보다 길어야 하며, Lock 만료 후 중복 실행될 수 있으므로 업무 로직도 Idempotent해야 한다.
 *   `@SchedulerLock` 어노테이션을 사용하여 Lock을 적용한다.
     *   `name`: Lock의 이름을 지정한다.
     *   `lockAtLeastFor`: Lock을 최소 유지 시간을 지정한다. (작업이 완료되기 전에 Lock이 해제되는 것을 방지)

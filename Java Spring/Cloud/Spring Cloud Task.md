@@ -48,42 +48,41 @@ runtimeOnly 'com.h2database:h2' // 또는 MySQL, Postgres
 **Java Code**
 ```java
 @SpringBootApplication
-@EnableTask // 필수: TaskRepository 설정 및 리스너 등록
-public class SimpleTaskInfoApplication {
+@EnableTask
+public class ExpiredTokenCleanupTaskApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(SimpleTaskInfoApplication.class, args);
+        SpringApplication.run(ExpiredTokenCleanupTaskApplication.class, args);
     }
 
     @Bean
-    public ApplicationRunner applicationRunner() {
-        return args -> {
-            System.out.println("### Heavy Processing Start ###");
-            Thread.sleep(2000);
-            System.out.println("### Heavy Processing End ###");
-        };
-    }
-    
-    @Bean
-    public SimpleTaskListener taskListener() {
-        return new SimpleTaskListener();
+    public ApplicationRunner cleanupRunner(ExpiredTokenCleanupService cleanupService) {
+        return arguments -> cleanupService.cleanup()
+                                          .getOrElseThrow(TokenCleanupTaskException::new);
     }
 }
 
-class SimpleTaskListener implements TaskExecutionListener {
+@Slf4j
+@Component
+class CleanupTaskExecutionListener implements TaskExecutionListener {
+
     @Override
     public void onTaskStartup(TaskExecution taskExecution) {
-        System.out.println("Task Started: " + taskExecution.getExecutionId());
+        log.info("Token cleanup task started. taskExecutionId={}", taskExecution.getExecutionId());
     }
 
     @Override
     public void onTaskEnd(TaskExecution taskExecution) {
-        System.out.println("Task Finished: " + taskExecution.getExitCode());
+        log.info(
+            "Token cleanup task finished. taskExecutionId={}, exitCode={}",
+            taskExecution.getExecutionId(),
+            taskExecution.getExitCode()
+        );
     }
 
     @Override
     public void onTaskFailed(TaskExecution taskExecution, Throwable throwable) {
-        System.err.println("Task Failed: " + throwable.getMessage());
+        log.error("Token cleanup task failed. taskExecutionId={}", taskExecution.getExecutionId(), throwable);
     }
 }
 ```
@@ -100,21 +99,33 @@ SELECT * FROM TASK_EXECUTION;
 Spring Batch Job이 정의되어 있으면, Spring Cloud Task는 자동으로 해당 Job Execution을 Task Execution 감쌉니다.
 
 ```java
-@EnableTask
-@EnableBatchProcessing
-@SpringBootApplication
-public class BatchTaskApplication {
+@Configuration
+public class BookingArchiveJobConfiguration {
 
     @Bean
-    public Job myJob(JobBuilderFactory jobs, StepBuilderFactory steps) {
-        return jobs.get("myJob")
-                .start(steps.get("myStep")
-                        .tasklet((contribution, chunkContext) -> {
-                            System.out.println("Batch Step Executed!");
-                            return RepeatStatus.FINISHED;
-                        })
-                        .build())
-                .build();
+    public Job bookingArchiveJob(JobRepository jobRepository, Step archiveBookingStep) {
+        return new JobBuilder("bookingArchiveJob", jobRepository)
+            .start(archiveBookingStep)
+            .build();
+    }
+
+    @Bean
+    public Step archiveBookingStep(
+        JobRepository jobRepository,
+        PlatformTransactionManager transactionManager,
+        ItemReader<BookingArchiveRow> reader,
+        ItemProcessor<BookingArchiveRow, ArchivedBooking> processor,
+        ItemWriter<ArchivedBooking> writer
+    ) {
+        return new StepBuilder("archiveBookingStep", jobRepository)
+            .<BookingArchiveRow, ArchivedBooking>chunk(500, transactionManager)
+            .reader(reader)
+            .processor(processor)
+            .writer(writer)
+            .faultTolerant()
+            .retryLimit(3)
+            .retry(TransientDataAccessException.class)
+            .build();
     }
 }
 ```

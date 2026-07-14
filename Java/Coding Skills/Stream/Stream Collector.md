@@ -44,38 +44,43 @@ Account[] accounts = accountDtos.stream()
 ## List로 수집하기
 
 ```java title="toList()로 List 만들기"
-List<String> names = Stream.of("Alice", "Bob", "Charlie")
-    .toList();
+List<BookingResource> resources = bookings.stream()
+                                          .map(BookingResource::from)
+                                          .toList();
 ```
 
 Java 16의 `Stream.toList()`가 반환하는 List는 수정할 수 없다. `Collectors.toList()`는 구체적인 구현 Type과 변경 가능성을 API 계약으로 보장하지 않는다. 수정 가능한 `ArrayList`가 반드시 필요하면 의도를 명시한다.
 
 ```java
-ArrayList<String> names = Stream.of("Alice", "Bob", "Charlie")
-    .collect(Collectors.toCollection(ArrayList::new));
+ArrayDeque<OutboxEvent> pendingEvents = events.stream()
+                                                   .filter(OutboxEvent::isPending)
+                                                   .collect(Collectors.toCollection(ArrayDeque::new));
 ```
 
 ## Set으로 중복 제거하기
 
 ```java title="toSet()으로 중복 제거하기"
-Set<String> names = Stream.of("Alice", "Bob", "Charlie", "Alice")
-    .collect(Collectors.toSet());
+Set<PassengerId> passengerIds = bookings.stream()
+                                        .flatMap(booking -> booking.passengers().stream())
+                                        .map(Passenger::id)
+                                        .collect(Collectors.toUnmodifiableSet());
 ```
 
 중복 판단에는 Element의 `equals()`와 `hashCode()`가 사용된다. `toSet()`은 Encounter Order를 보장하지 않으므로 입력 순서를 유지해야 하면 `LinkedHashSet`을 선택한다.
 
 ```java
-Set<String> orderedNames = names.stream()
-    .collect(Collectors.toCollection(LinkedHashSet::new));
+Set<BookingId> orderedBookingIds = bookings.stream()
+                                           .map(Booking::id)
+                                           .collect(Collectors.toCollection(LinkedHashSet::new));
 ```
 
 ## Map과 중복 Key 정책
 
 ```java title="toMap()으로 이름과 길이 연결하기"
-Map<String, Integer> nameLengths = Stream.of("Alice", "Bob", "Charlie")
-    .collect(Collectors.toMap(
-        Function.identity(),
-        String::length
+Map<BookingId, BookingResource> resourceByBookingId = bookings.stream()
+    .collect(Collectors.toUnmodifiableMap(
+        Booking::id,
+        BookingResource::from
     ));
 ```
 
@@ -147,8 +152,10 @@ LongSummaryStatistics statistics = orders.stream()
 반복문에서 문자열을 `+`로 계속 연결하면 중간 String 객체가 많이 생긴다. `joining`은 구분자와 접두·접미사를 의도와 함께 표현한다.
 
 ```java
-String csv = names.stream()
-    .collect(Collectors.joining(",", "[", "]"));
+String bookingIdsHeader = bookings.stream()
+                                  .map(Booking::id)
+                                  .map(BookingId::toString)
+                                  .collect(Collectors.joining(","));
 ```
 
 값에 쉼표나 따옴표가 들어갈 수 있는 실제 CSV라면 단순 `joining`이 아니라 Escape 규칙을 지원하는 CSV Library를 사용해야 한다.
@@ -158,11 +165,12 @@ String csv = names.stream()
 수집 후 한 번의 변환이 필요할 때 사용한다.
 
 ```java
-List<String> immutableNames = names.stream()
-    .collect(Collectors.collectingAndThen(
-        Collectors.toList(),
-        List::copyOf
-    ));
+SortedSet<ServiceDate> immutableServiceDates = bookings.stream()
+                                                       .map(Booking::serviceDate)
+                                                       .collect(Collectors.collectingAndThen(
+                                                           Collectors.toCollection(TreeSet::new),
+                                                           Collections::unmodifiableSortedSet
+                                                       ));
 ```
 
 Java 16 이상에서 단순히 수정 불가능한 List만 필요하다면 `Stream.toList()`가 더 간단하다. `collectingAndThen`은 다른 Collector의 결과를 Domain Type으로 감싸는 경우처럼 실제 후처리가 있을 때 유용하다.

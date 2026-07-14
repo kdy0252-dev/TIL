@@ -26,24 +26,20 @@ group:
 객체지향 관점에서는 **Internal Iterator Pattern**이라고도 부른다.
 - 전통적 반복문(external iterator)
 ```java title="External iterator 패턴 예시"
-for(OnMealDuty duty : onMealDuties) {
-    if(duty.grade.equals("일병")) {
-        duty.deliverMeal();
-        duty.washDishes();
-        duty.throwTrash();
+List<SettlementLine> settlementLines = new ArrayList<>();
+
+for (Booking booking : bookings) {
+    if (booking.isCompleted()) {
+        settlementLines.add(SettlementLine.from(booking));
     }
 }
 ```
 - 스트림 기반 처리(internal iterator)
 ```Java title="Interanl iterator 패턴 예시"
-List<OnMealDuty> onMealDuties = new ArrayList<>();
-onMealDuties.stream()                 // ① 스트림 생성
-             .filter(d -> d.grade.equals("일병"))  // ② 중간 연산
-             .forEach(d -> {          // ③ 최종 연산
-                 d.deliverMeal();
-                 d.washDishes();
-                 d.throwTrash();
-             });
+List<SettlementLine> settlementLines = bookings.stream()
+                                               .filter(Booking::isCompleted)
+                                               .map(SettlementLine::from)
+                                               .toList();
 ```
 - 컬렉션 내부에서 요소 하나하나를 꺼내고 `filter`, `map` 같은 **함수(람다)** 만 우리가 제공
   → Stream 내부에서 순회를 하고 우리는 ‘무엇을 할지’(method)를 Stream에 전달한다. 즉, 컬렉션 처리 로직을 내부로 숨기고, 외부에서는 필요한 연산만 지정하는 것이다.
@@ -130,16 +126,17 @@ for-loop와 Stream간 유의미한 차이가 발생하지 않는다.
 > [!Info] Stream은 경우에 따라서는 for-loop와 동등할정도로 빠르다.
 > The ultimate conclusion to draw from this benchmark experiment is NOT that streams are always slower than loops. Yes, streams are sometimes slower than loops, but they can also be equally fast; it depends on the circumstances. The point to take home is that sequential streams are no faster than loops. If you use sequential streams then you don’t do it for performance reasons; you do it because you like the functional programming style.
 ```Java title="Stream을 Collector로 구성"
-dataList = br.lines()
-             .map(i->i.split("[|]")
-             .collect(Collectors.toList());
+List<PassengerImportRow> rows = reader.lines()
+                                      .skip(1)
+                                      .map(csvRowParser::parse)
+                                      .toList();
 ```
 평균 5,730ms
 ```java title="Imperative Programming(기존 방식)"
-List<String[]> dataList = new ArrayList<String[]>();  
-while ((readLine = br.readLine()) != null) {  
-       columnDatas = readLine.split("[|]");  
-       dataList.add(columnDatas);  
+List<PassengerImportRow> rows = new ArrayList<>();
+String line;
+while ((line = reader.readLine()) != null) {
+    rows.add(csvRowParser.parse(line));
 }
 ```
 평균 6113.7ms
