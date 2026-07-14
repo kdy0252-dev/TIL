@@ -64,11 +64,11 @@ public class SchedulerConfiguration {
 *   `initialDelay`: 초기 지연 시간을 설정한다 (ms 단위).
 *   `cron`: Cron 표현식을 사용하여 작업을 예약한다.
 ### 4. Cron 표현식
-![[Pasted image 20250321085900.png]]
+![[Spring Scheduler - 01.png]]
 #### Cron Field 값으로 올 수 있는 것들
-![[Pasted image 20250321085912.png]]
+![[Spring Scheduler - 02.png]]
 #### 정규표현식
-![[Pasted image 20250321085952.png]]
+![[Spring Scheduler - 03.png]]
 #### 사용 예시
 *   `0 0/5 * * * ?`: 매 5분마다 실행
 *   `0 0 0/1 * * ?`: 매 1시간마다 실행

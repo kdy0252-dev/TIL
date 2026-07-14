@@ -49,7 +49,7 @@ onMealDuties.stream()                 // ① 스트림 생성
   → Stream 내부에서 순회를 하고 우리는 ‘무엇을 할지’(method)를 Stream에 전달한다. 즉, 컬렉션 처리 로직을 내부로 숨기고, 외부에서는 필요한 연산만 지정하는 것이다.
 
 ## 메서드 체이닝(Fluent API)
-![[Pasted image 20250508130239.png]]
+![[Stream의 비용 - 01.png]]
 ```Java title="Method Chaining"
 stream
   .filter(...)
@@ -83,7 +83,7 @@ for (int i = 0; i < e; i++) {
 int m = Arrays.stream(ints).reduce(Integer.MIN_VALUE, Math::max);
 ```
 ### 벤치마크 결과
-![[Pasted image 20250508130602.png]]
+![[Stream의 비용 - 02.png]]
 External iterator: 0.36ms
 Internal iterator: 5.35ms
 약 15배 차이
@@ -97,7 +97,7 @@ Internal iterator: 5.35ms
 벤치마크 조건
 - ArrayList 500000개의 Integer 타입을 저장
 - 이후, Integer 중 가장 큰 원소를 리턴
-![[Pasted image 20250508130809.png]]
+![[Stream의 비용 - 03.png]]
 for-loop: 6.55ms
 Internal iterator: 8.33ms
 약 1.27배 차이
@@ -108,7 +108,7 @@ Iterator를 순회하는 비용의 비율보다 ArrayList를 순회하는 비용
 즉 Iteration Cost 자체가 크다면 For Loop와 Stream의 차이는 유의미하게 좁혀진다.
 
 #### 순회비용(cost of iteration)보다 계산 비용(cost of functionality)이 더 큰 경우
-![[Pasted image 20250508131502.png]]
+![[Stream의 비용 - 04.png]]
 파라미터로 넘겨지는 메소드의 Sin 값을 계산하고 이에 대한 테일러 급수를 계산하는 함수다.
 ```java title="for loop example"
 int[] a = ints;  
@@ -122,7 +122,7 @@ double m = Double.MIN_VALUE;for (int i = 0; i < e; i++) {
 ```java title="stream example"
 Arrays.stream(ints).mapToDouble(Sine::slowSin).reduce(Double.MIN_VALUE, Math::max);
 ```
-![[Pasted image 20250508131642.png]]
+![[Stream의 비용 - 05.png]]
 for-loop와 Stream간 유의미한 차이가 발생하지 않는다.
 
 즉 순회비용(cost of iteration)과 계산 비용(cost of functionality)의 합이 큰경우 for-loop와 stream간 유의미한 성능차이는 나지 않는다.

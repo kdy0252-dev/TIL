@@ -93,7 +93,7 @@ public class RedisUtils {
 }
 ```
 Redis Template는 Value의 타입마다 제공하는 메소드가 다르다.
-![[Pasted image 20250221155431.png]]
+![[Redis Spring에서 사용방법 - 01.png]]
 ## 4. Redis Cache
 ### @EnableCaching
 Redis Caching을 사용하려면 Main Class에 어노테이션을 붙여주어야 함.
@@ -140,16 +140,16 @@ public class RedisCacheConfig {
 ### @Cacheable
 - 리턴 값을 기준으로 데이터가 캐시에 있으면 그대로 반환, 없으면 저장 후 반환한다.
 - 보통 조회와 같은 API에 많이 사용됨
-![[Pasted image 20250221155739.png]]
+![[Redis Spring에서 사용방법 - 02.png]]
 ### @CachePut
 - 캐시에 데이터를 저장할 때만 사용한다.
 - **@Cacheable**과 다르게 캐시에 저장된 데이터를 사용하지 않는다.
 - 보통 수정과 같은 API에 많이 사용됨
-![[Pasted image 20250221160234.png]]
+![[Redis Spring에서 사용방법 - 03.png]]
 ### @CacheEvict
 - 메서드가 호출될 때 캐시에 있는 데이터가 삭제된다.
 - 보통 삭제와 같은 API에 많이 사용됨
-![[Pasted image 20250221160252.png]]
+![[Redis Spring에서 사용방법 - 04.png]]
 
 ## 7. API에 캐싱 적용하기 - Example
 

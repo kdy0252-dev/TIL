@@ -9,7 +9,7 @@ group:
 # Observer Pattern
 ## Observer Pattern이란?
 Observer 패턴은 Subject의 상태 변화를 Observer들에게 알리는 디자인 패턴이다. Observer(Subscriber, Listener)는 Event를 기다리면서 Event가 생기면 반응하여 함수를 호출하는 패턴이다. **주 객체(Subject)의 상태 변화를 감시하는 객체(Observer) 목록을 유지하고, 상태 변화가 있을 때마다 해당 객체들에게 자동으로 알림을 보내는 방식**이다.
-![[Pasted image 20250514221654.png]]
+![[Observer Pattern - 01.png]]
 ## 구성 요소
 *   **Subject**: 상태 변화를 감시하는 대상 객체. Observer 목록을 관리하고, 상태 변화가 있을 때 Observer들에게 알림을 보낸다.
 *   **Observer**: Subject의 상태 변화를 감지하고, 알림을 받았을 때 특정 동작을 수행하는 객체.

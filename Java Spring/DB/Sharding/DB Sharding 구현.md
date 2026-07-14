@@ -11,7 +11,7 @@ group:
 Java Spring에서 DB 샤딩을 구현하는 방법은 크게 2가지로 나뉜다.
 - 직접 샤딩 알고리즘을 구현해서 Datasource를 선택.
 - Middleware를 사용
-![[Pasted image 20250514095847.png]]
+![[DB Sharding 구현 - 01.png]]
 직접 구현하는 것은 구현 난이도측면에서나 운영 측면에서 난이도는 높지만 자유로운 장점이 있다.
 Middleware를 사용하는 것은 구현 난이도나 운영 난이도는 낮지만 자유도는 살짝 떨어지는 단점이 있다.
 

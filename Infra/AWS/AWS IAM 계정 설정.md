@@ -10,26 +10,26 @@ tags:
 ## 계정 설정
 
 ### 1. IAM 서비스로 이동한다.
-![[Pasted image 20250429072224.png]]
+![[AWS IAM 계정 설정 - 01.png]]
 다음과 같은 화면이 뜨면
 왼쪽 탭에서 사용자를 클릭한다.
 
 ### 2. 사용자 탭으로 이동
-![[Pasted image 20250429072335.png]]
+![[AWS IAM 계정 설정 - 02.png]]
 사용자 테이블에서 자신의 계정을 찾아 클릭한다.
 
 ### 3. 보안 자격 증명탭을 클릭한다.
-![[Pasted image 20250429072432.png]]
+![[AWS IAM 계정 설정 - 03.png]]
 
 ### 4. MFA 디바이스 할당 버튼을 클릭한다
-![[Pasted image 20250429072521.png]]
+![[AWS IAM 계정 설정 - 04.png]]
 
 ### 5. 아래와 같이 MFA를 생성해준다.
-![[Pasted image 20250429072557.png]]
+![[AWS IAM 계정 설정 - 05.png]]
 디바이스의 이름을 입력하고 인증 관리자 앱을 선택해준다.
 
 ### 6. MFA 디바이스(스마트폰)에서 Google Authenticator을 설치하고 앱에서 QR코드를 인식시킨다.
-![[Pasted image 20250429072651.png]]
+![[AWS IAM 계정 설정 - 06.png]]
 그러면 Google Authenticator에 OTP가 뜨는데 하단의 MFA 코드 1에 입력하고 30초가 지난 후 OTP 번호가 바뀌면 MFA 코드 2에 입력한다.
 
 ### 7. AWS CLI를 설치한다. (설치 되어있으면 생략)
@@ -50,10 +50,10 @@ pipx install aws-mfa
 ```
 
 ### 9. 액세스 키를 발급한다.
-![[Pasted image 20250429074411.png]]
+![[AWS IAM 계정 설정 - 07.png]]
 MFA를 만들던 화면 아래에 있는 액세스 키 만들기 버튼을 클릭한다.
 
-![[Pasted image 20250429074558.png]]
+![[AWS IAM 계정 설정 - 08.png]]
 위와 같이 입력하고 다음을 누르고 나온 키와 Key ID를 복사한다. 두번 다시 보지 못하므로 잘 보관한다.
 
 ### 10. aws configure 생성한다.
@@ -66,7 +66,7 @@ Default output format [None] :
 ```
 
 ### 11. ~/.aws 경로의 credentials 파일에 아래 정보를 추가해준다.
-![[Pasted image 20250429074705.png]]
+![[AWS IAM 계정 설정 - 09.png]]
 ```
 [default-long-term]
 aws_access_key_id = {발급받은 IAM의 Access Key ID}
@@ -110,7 +110,7 @@ aws sts get-caller-identity --output table`
 ```
 
 ### 15. 만약 다 했는데 안된다면 클러스터 ConfigMap에 등록되지 않아서 그렇다. (관리자에게 문의)
-![[Pasted image 20250429090157.png]]
+![[AWS IAM 계정 설정 - 10.png]]
 클러스터를 생성한 사람이 `system:masters` 권한을 가지고 있고 `system:masters`권한이 있는 사람이 유저를 ConfigMap에 등록해주어야 한다.
 
 아래는 ConfigMap에 등록하는 예시 명령어이다.

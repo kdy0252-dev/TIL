@@ -1,2 +1,21 @@
-**/.DS_Store
+# macOS and Windows metadata
 .DS_Store
+**/.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Obsidian device-local state
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+.trash/
+
+# Editor and temporary files
+*.swp
+*.swo
+*.tmp
+*~
+
+# IDE-local project files
+.idea/
+*.iml

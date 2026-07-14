@@ -20,11 +20,11 @@ public interface Project extends Comparable<Project>, ExtensionAware, PluginAwar
 build.gradle에 작성하는 수많은 코드는 모두 Project 객체의 프로퍼티와 메서드를 설정하는 것입니다. Project 객체는 프로젝트 이름, 버전, 의존성, 빌드 작업 등 모든 것을 포함하는 슈퍼 객체입니다.
 Project 객체는 내부에 수많은 메서드(Methods)와 속성(Properties)을 가지고 있습니다. 메서드 중에 대표적인 것은 모든 java application용 build.gradle이 가진 plugins, repositories, dependencies, application 메서드입니다. 우리가 Gradle Task를 이용해 java application을 빌드하게 되면 build task는 이 메서드들을 수행합니다.
 
-![[Pasted image 20250530154835.png]]
+![[Gradle 동작 원리 - 01.png]]
 
 [그림1]의 {}로 감싸여진 부분은 메서드의 인자로 받아지는 Groovy의 클로저(Closure)인데, Groovy의 클로저는 Java나 Kotlin의 람다와 같습니다. 따라서 {} 블록 내부의 메서드들은 [그림2]와 같이 메서드의 인자로 넘겨질 수도 있습니다. 클로저를 사용하면 코드를 더 간결하고 유연하게 만들 수 있습니다.
 
-![[Pasted image 20250530154849.png]]
+![[Gradle 동작 원리 - 02.png]]
 즉 [그림1]의 코드와 [그림2]의 코드는 같은 코드입니다.
 ## build.gradle의 프로퍼티
 build.gradle에는 Project 객체를 위한 프로퍼티를 정의할 수 있습니다. 프로퍼티는 프로젝트의 다양한 설정을 담고 있습니다.
