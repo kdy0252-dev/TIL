@@ -28,6 +28,7 @@
 - [Netcode 모델](./게임%20개발/네트워크/Netcode%20모델%20Lockstep%20Snapshot%20Prediction%20Rollback.md): Lockstep, Snapshot, Prediction, Rollback과 Lag Compensation 비교
 - [Production Readiness Review](./설계/Production%20Readiness%20Review.md): 서비스가 운영 가능한지를 검증하는 관점
 - [Expand-Contract 패턴](./설계/Expand-Contract%20패턴.md): Database, API와 Event 계약을 무중단으로 점진 전환하는 방법
+- [AWS DMS, SCT와 CDC 무중단 마이그레이션](./Infra/AWS/AWS%20DMS%20SCT%20CDC%20이기종%20무중단%20마이그레이션.md): Oracle 이기종 전환과 원격 PostgreSQL Schema 재설계를 Full Load와 CDC로 수행하는 실전 Runbook
 - [In-flight Deduplication](./Java%20Spring/Design%20Pattern/In-flight%20Deduplication.md): 동시에 들어온 동일 작업을 하나로 합치는 방법
 - [Projection과 Hydration](./Java%20Spring/DB/JPA/Projection과%20Hydration.md): 조회 모델과 도메인 복원의 경계
 - [k6 부하 테스트와 성능 검증](./Java%20Spring/Test/k6%20부하%20테스트와%20성능%20검증.md): 성능 목표와 부하 시나리오 설계
